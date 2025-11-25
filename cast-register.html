@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOSPOS - スタッフ新規登録</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 役割選択のラジオボタン用スタイル */
+        .role-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .role-option {
+            flex: 1;
+            position: relative;
+        }
+        .role-option input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .role-label {
+            display: block;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: bold;
+            color: var(--text-sub);
+        }
+        .role-option input:checked + .role-label {
+            border-color: var(--primary-color);
+            background-color: #e6f2ff;
+            color: var(--primary-color);
+        }
+        .role-label i {
+            display: block;
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body class="login-body">
+
+    <div class="login-container">
+        <div class="login-header">
+            <h1>Staff Register</h1>
+            <p>スタッフアカウント登録</p>
+        </div>
+
+        <div id="fatal-error" style="display:none; color: red; margin-bottom: 20px;">
+            <i class="fas fa-exclamation-triangle"></i> <span id="fatal-msg"></span>
+        </div>
+
+        <form id="cast-register-form">
+            
+            <p style="text-align:left; font-size:0.9rem; margin-bottom:10px; font-weight:bold;">1. 役割を選択してください</p>
+            <div class="role-selector">
+                <div class="role-option">
+                    <input type="radio" name="role" id="role-cast" value="cast" checked>
+                    <label for="role-cast" class="role-label">
+                        <i class="fas fa-user-tie"></i>
+                        キャスト
+                    </label>
+                </div>
+                <div class="role-option">
+                    <input type="radio" name="role" id="role-inner" value="inner">
+                    <label for="role-inner" class="role-label">
+                        <i class="fas fa-headset"></i>
+                        内勤・運営
+                    </label>
+                </div>
+            </div>
+
+            <p style="text-align:left; font-size:0.9rem; margin-bottom:10px; font-weight:bold;">2. アカウント情報を入力</p>
+
+            <div class="form-group">
+                <label>源氏名 / スタッフ名</label>
+                <input type="text" id="cast-name" placeholder="例: 涼介" required>
+            </div>
+
+            <div class="form-group">
+                <label>メールアドレス</label>
+                <input type="email" id="email" placeholder="cast@example.com" required>
+            </div>
+
+            <div class="form-group">
+                <label>パスワード</label>
+                <input type="password" id="password" placeholder="8文字以上" required minlength="8">
+            </div>
+
+            <button type="submit" id="submit-btn" class="btn-primary">登録してはじめる</button>
+        </form>
+
+        <div id="message-area" class="error-message" style="color: var(--text-main); margin-top:10px;"></div>
+        
+        <div class="login-footer">
+            <a href="index.html">ログイン画面へ戻る</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, db } from './assets/js/firebase-config.js';
+        import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const form = document.getElementById('cast-register-form');
+        const msgArea = document.getElementById('message-area');
+        const btn = document.getElementById('submit-btn');
+        
+        // URLから店舗ID (tid) を取得する
+        const params = new URLSearchParams(window.location.search);
+        const tenantId = params.get('tid');
+
+        // 店舗IDがない場合、登録させない（重要）
+        if (!tenantId) {
+            document.getElementById('fatal-error').style.display = 'block';
+            document.getElementById('fatal-msg').textContent = "招待リンクが無効です。店舗管理者から正しいURLをもらってください。";
+            form.style.display = 'none'; // フォームを隠す
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            msgArea.style.color = "#007bff";
+            msgArea.textContent = "登録処理中...";
+            btn.disabled = true;
+
+            const name = document.getElementById('cast-name').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            // ラジオボタンで選択された値を取得
+            const role = document.querySelector('input[name="role"]:checked').value;
+
+            try {
+                // 1. Authentication作成
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // 2. 店舗データ内の users コレクションに追加
+                await setDoc(doc(db, "tenants", tenantId, "users", user.uid), {
+                    name: name,
+                    email: email,
+                    role: role,      // "cast" or "inner"
+                    isActive: true,  // 在籍中
+                    nfcId: null,     // 後で登録
+                    currentStatus: "off", // 出勤状況：退勤
+                    createdAt: serverTimestamp()
+                });
+
+                // 3. ログイン振り分け用のマッピング作成
+                await setDoc(doc(db, "sys_user_mapping", user.uid), {
+                    tenantId: tenantId,
+                    role: role
+                });
+
+                msgArea.textContent = "登録完了！専用ページへ移動します...";
+
+                // 4. 役割に応じて遷移先を変える
+                setTimeout(() => {
+                    if (role === 'cast') {
+                        // キャスト用フォルダへ（まだファイルがないので404になるかも）
+                        window.location.href = "cast/home.html"; 
+                    } else {
+                        // 内勤なら管理者画面へ
+                        window.location.href = "admin/dashboard.html";
+                    }
+                }, 1500);
+
+            } catch (error) {
+                console.error(error);
+                msgArea.style.color = "#dc3545";
+                btn.disabled = false;
+                
+                let errorText = "登録に失敗しました。";
+                if (error.code === 'auth/email-already-in-use') {
+                    errorText = "このメールアドレスは既に使用されています。";
+                }
+                msgArea.textContent = errorText;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOSPOS - 店舗設定</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 共通スタイルは省略せず維持 */
+        .dashboard-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
+        .main-content { flex: 1; padding: 40px; background-color: var(--bg-color); }
+        
+        .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
+        .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
+        .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
+
+        .settings-section { background: white; padding: 30px; border-radius: 12px; box-shadow: var(--shadow-sm); margin-bottom: 30px; }
+        .section-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; color: var(--primary-color); }
+        .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        
+        .helper-text { font-size: 0.85rem; color: var(--text-sub); margin-top: 8px; margin-bottom: 24px; margin-left: 4px; }
+        .save-area { position: sticky; bottom: 20px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; box-shadow: 0 -5px 20px rgba(0,0,0,0.05); display: flex; justify-content: flex-end; align-items: center; border: 1px solid var(--border-color); }
+
+        /* ダイナミック設定用のスタイル */
+        .grade-row {
+            display: grid;
+            grid-template-columns: 150px 150px 60px 1fr 40px; /* 名前, 金額, 色, 曲, 削除 */
+            gap: 10px;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #eee;
+        }
+        .grade-row input {
+            width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd;
+        }
+        .btn-add { background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; margin-bottom: 10px; }
+        .btn-delete { background: #dc3545; color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+            <nav>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
+                <a href="slips.html" class="menu-item"><i class="fas fa-file-invoice-dollar"></i> 伝票一覧</a>
+                <a href="call-management.html" class="menu-item"><i class="fas fa-music"></i> コール管理</a>
+                <a href="shokai-control.html" class="menu-item"><i class="fas fa-users"></i> 初回・付け回し</a>
+                <a href="products.html" class="menu-item"><i class="fas fa-wine-bottle"></i> 商品管理</a>
+                <a href="inventory.html" class="menu-item"><i class="fas fa-boxes"></i> 在庫管理</a>
+                <a href="cast-list.html" class="menu-item"><i class="fas fa-user-tie"></i> キャスト管理</a>
+                <a href="attendance.html" class="menu-item"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="customers.html" class="menu-item"><i class="fas fa-address-book"></i> 顧客管理</a>
+                <a href="sales-analysis.html" class="menu-item"><i class="fas fa-chart-line"></i> 売上分析</a>
+                <a href="ranking.html" class="menu-item"><i class="fas fa-trophy"></i> ランキング</a>
+                <a href="daily-report.html" class="menu-item"><i class="fas fa-file-alt"></i> 日報・ログ</a>
+                <a href="settings.html" class="menu-item active"><i class="fas fa-cog"></i> 店舗設定</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2 style="margin-bottom: 30px;">店舗設定</h2>
+
+            <form id="settings-form">
+                <div class="settings-section">
+                    <div class="section-title"><i class="fas fa-receipt"></i> 基本情報・領収書設定</div>
+                    <div class="form-group">
+                        <label>店舗名（表示用）</label>
+                        <input type="text" id="storeName" required>
+                    </div>
+                    <div class="input-row">
+                        <div class="form-group">
+                            <label>領収書発行元（会社名など）</label>
+                            <input type="text" id="companyName">
+                        </div>
+                        <div class="form-group">
+                            <label>電話番号</label>
+                            <input type="text" id="phone">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>所在地</label>
+                        <input type="text" id="address">
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="section-title"><i class="fas fa-calculator"></i> 会計・税率設定</div>
+                    <div class="input-row">
+                        <div class="form-group">
+                            <label>消費税率 (%)</label>
+                            <input type="number" id="taxRate" value="10">
+                        </div>
+                        <div class="form-group">
+                            <label>サービス料率 (%)</label>
+                            <input type="number" id="serviceRate" value="30">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>端数処理設定</label>
+                        <select id="rounding">
+                            <option value="none">何もしない</option>
+                            <option value="up_10">10円単位で切り上げ</option>
+                            <option value="down_10">10円単位で切り捨て</option>
+                            <option value="up_100">100円単位で切り上げ</option>
+                            <option value="down_100">100円単位で切り捨て</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="section-title"><i class="fas fa-heart"></i> 初回・指名制限設定</div>
+                    <div class="input-row">
+                        <div class="form-group">
+                            <label>写真指名 上限人数</label>
+                            <input type="number" id="shokaiPhoto" value="2">
+                        </div>
+                        <div class="form-group">
+                            <label>送り指名 上限人数</label>
+                            <input type="number" id="shokaiOkuri" value="1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="section-title"><i class="fas fa-music"></i> シャンパンコール設定</div>
+                    <p class="helper-text">
+                        コールの種類を自由に追加できます。楽曲はカンマ(,)区切りで入力してください。<br>
+                        例: 「Short - 定番, Short - 盛り上げ」
+                    </p>
+
+                    <div style="margin-bottom:10px; font-weight:bold; font-size:0.9rem; display:grid; grid-template-columns:150px 150px 60px 1fr 40px; gap:10px; padding:0 10px;">
+                        <span>グレード名</span>
+                        <span>最低金額 (¥)</span>
+                        <span>色</span>
+                        <span>楽曲リスト (カンマ区切り)</span>
+                        <span></span>
+                    </div>
+
+                    <div id="call-grades-container">
+                        </div>
+
+                    <button type="button" class="btn-add" id="add-grade-btn"><i class="fas fa-plus"></i> グレードを追加</button>
+                </div>
+
+                <div class="save-area">
+                    <div id="status-msg" style="margin-right: 15px; font-weight: bold;"></div>
+                    <button type="submit" class="btn-primary" style="width: 200px;">設定を保存する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from '../assets/js/firebase-config.js';
+        import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        if (!tenantId) window.location.href = "../index.html";
+
+        const container = document.getElementById('call-grades-container');
+        const addBtn = document.getElementById('add-grade-btn');
+        
+        // 行を追加する関数
+        function addGradeRow(name = "", threshold = 0, color = "#000000", songs = "") {
+            const div = document.createElement('div');
+            div.className = 'grade-row';
+            div.innerHTML = `
+                <input type="text" class="grade-name" placeholder="Short Call" value="${name}" required>
+                <input type="number" class="grade-threshold" placeholder="金額" value="${threshold}" required>
+                <input type="color" class="grade-color" value="${color}" style="height:40px; padding:0; cursor:pointer;">
+                <input type="text" class="grade-songs" placeholder="曲A, 曲B, 曲C" value="${songs}">
+                <button type="button" class="btn-delete" onclick="this.parentElement.remove()"><i class="fas fa-trash"></i></button>
+            `;
+            container.appendChild(div);
+        }
+
+        addBtn.onclick = () => addGradeRow();
+
+        // ロード処理
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const docSnap = await getDoc(doc(db, "tenants", tenantId));
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    
+                    // 基本設定
+                    document.getElementById('storeName').value = data.name || "";
+                    document.getElementById('companyName').value = data.companyName || "";
+                    document.getElementById('address').value = data.address || "";
+                    document.getElementById('phone').value = data.phone || "";
+                    
+                    const config = data.config || {};
+                    document.getElementById('taxRate').value = config.taxRate ?? 10;
+                    document.getElementById('serviceRate').value = config.serviceRate ?? 30;
+                    document.getElementById('rounding').value = config.rounding || "up_10";
+                    
+                    document.getElementById('shokaiPhoto').value = config.shokaiLimit?.photo ?? 2;
+                    document.getElementById('shokaiOkuri').value = config.shokaiLimit?.okuri ?? 1;
+
+                    // ★コール設定の読み込み (配列)
+                    const callGrades = config.callGrades || [];
+                    
+                    if (callGrades.length > 0) {
+                        // 保存された設定があればそれを表示
+                        callGrades.sort((a,b) => a.threshold - b.threshold).forEach(g => {
+                            addGradeRow(g.name, g.threshold, g.color, g.songs);
+                        });
+                    } else {
+                        // 初回起動時はデフォルト値をセット
+                        addGradeRow("Short Call", 50000, "#17a2b8", "Short - 定番A, Short - 盛り上げB");
+                        addGradeRow("Long Call", 150000, "#28a745", "Long - 感動系A, Long - 激しい系B");
+                        addGradeRow("All Call", 700000, "#ffc107", "All - 店歌");
+                        addGradeRow("Million Call", 1000000, "#dc3545", "Million - 王者のファンファーレ");
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        });
+
+        // 保存処理
+        document.getElementById('settings-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const statusMsg = document.getElementById('status-msg');
+            statusMsg.textContent = "保存中...";
+            
+            // 行からデータを収集
+            const rows = document.querySelectorAll('.grade-row');
+            const callGrades = [];
+            rows.forEach(row => {
+                callGrades.push({
+                    name: row.querySelector('.grade-name').value,
+                    threshold: Number(row.querySelector('.grade-threshold').value),
+                    color: row.querySelector('.grade-color').value,
+                    songs: row.querySelector('.grade-songs').value
+                });
+            });
+
+            const updateData = {
+                name: document.getElementById('storeName').value,
+                companyName: document.getElementById('companyName').value,
+                address: document.getElementById('address').value,
+                phone: document.getElementById('phone').value,
+                config: {
+                    taxRate: Number(document.getElementById('taxRate').value),
+                    serviceRate: Number(document.getElementById('serviceRate').value),
+                    rounding: document.getElementById('rounding').value,
+                    shokaiLimit: {
+                        photo: Number(document.getElementById('shokaiPhoto').value),
+                        okuri: Number(document.getElementById('shokaiOkuri').value)
+                    },
+                    callGrades: callGrades // 配列として保存
+                }
+            };
+
+            try {
+                await updateDoc(doc(db, "tenants", tenantId), updateData);
+                statusMsg.textContent = "設定を保存しました！";
+                statusMsg.style.color = "green";
+                setTimeout(() => { statusMsg.textContent = ""; }, 3000);
+            } catch (e) {
+                console.error(e);
+                statusMsg.textContent = "保存失敗";
+                statusMsg.style.color = "red";
+            }
+        });
+    </script>
+</body>
+</html>

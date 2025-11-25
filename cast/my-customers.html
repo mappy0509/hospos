@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>My Customers</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f8f9fa; padding-bottom: 80px; }
+        
+        .page-header {
+            background: white; padding: 15px 20px; position: sticky; top: 0; z-index: 10;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center;
+        }
+        .page-title { font-weight: bold; font-size: 1.1rem; }
+
+        .search-box { padding: 15px; }
+        .search-input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+
+        .customer-list { padding: 0 15px; }
+        .cust-card {
+            background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px;
+            box-shadow: var(--shadow-sm); border-left: 5px solid var(--primary-color);
+            cursor: pointer;
+        }
+        .cust-name { font-weight: bold; font-size: 1.1rem; margin-bottom: 5px; }
+        .cust-info { font-size: 0.85rem; color: #666; }
+        .cust-note { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #eee; font-size: 0.85rem; color: #555; white-space: pre-wrap; }
+
+        .fab-add {
+            position: fixed; bottom: 90px; right: 20px;
+            width: 56px; height: 56px; border-radius: 50%;
+            background: var(--primary-color); color: white;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; box-shadow: 0 4px 10px rgba(0,123,255,0.3);
+            z-index: 100; cursor: pointer; border: none;
+        }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 400px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; }
+        .input-box { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+    </style>
+</head>
+<body>
+
+    <div class="page-header">
+        <div class="page-title"><i class="fas fa-address-book"></i> マイ顧客リスト</div>
+    </div>
+
+    <div class="search-box">
+        <input type="text" id="search-input" class="search-input" placeholder="名前で検索...">
+    </div>
+
+    <div id="cust-list" class="customer-list">
+        <div style="text-align:center; padding:30px; color:#aaa;">読み込み中...</div>
+    </div>
+
+    <button class="fab-add" onclick="openModal()"><i class="fas fa-plus"></i></button>
+
+    <div id="cust-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title" style="margin-bottom:20px;">顧客登録</h3>
+            <form id="cust-form">
+                <input type="hidden" id="cust-id">
+                <div class="form-group">
+                    <label>お客様名</label>
+                    <input type="text" id="cust-name" class="input-box" required>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <div class="form-group" style="flex:1;">
+                        <label>年齢</label>
+                        <input type="number" id="cust-age" class="input-box">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>職業</label>
+                        <input type="text" id="cust-job" class="input-box">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>メモ (好み、NGなど)</label>
+                    <textarea id="cust-notes" class="input-box" style="height:80px;"></textarea>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button type="button" onclick="closeModal()" class="btn-primary" style="background:#ccc; flex:1;">閉じる</button>
+                    <button type="submit" class="btn-primary" style="flex:1;">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <a href="home.html" class="nav-item">
+            <i class="fas fa-home"></i>ホーム
+        </a>
+        <a href="javascript:void(0)" class="nav-item locked" id="nav-order" onclick="checkStatus(event)">
+            <i class="fas fa-glass-martini-alt"></i>注文
+        </a>
+        <a href="my-customers.html" class="nav-item active">
+            <i class="fas fa-address-book"></i>顧客
+        </a>
+        <a href="profile.html" class="nav-item">
+            <i class="fas fa-user"></i>マイページ
+        </a>
+    </div>
+
+    <script type="module">
+        import { db } from '../assets/js/firebase-config.js';
+        import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        const myUid = sessionStorage.getItem('hospos_uid');
+        if (!tenantId) window.location.href = "../index.html";
+
+        const listContainer = document.getElementById('cust-list');
+        const searchInput = document.getElementById('search-input');
+        const modal = document.getElementById('cust-modal');
+        const form = document.getElementById('cust-form');
+
+        let myCustomers = [];
+
+        // 1. 出勤状態チェック (これを追加)
+        async function checkAttendance() {
+            try {
+                const userSnap = await getDoc(doc(db, "tenants", tenantId, "users", myUid));
+                if(userSnap.exists()) {
+                    const data = userSnap.data();
+                    const navOrder = document.getElementById('nav-order');
+                    
+                    if(data.currentStatus === 'working') {
+                        // 出勤中ならロック解除
+                        navOrder.classList.remove('locked');
+                        navOrder.setAttribute('href', 'order.html');
+                        navOrder.style.color = "#adb5bd"; 
+                    }
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        // ロック時のクリック処理 (Global)
+        window.checkStatus = (e) => {
+            if (document.getElementById('nav-order').classList.contains('locked')) {
+                alert("⚠️ 先に出勤処理を行ってください");
+            }
+        };
+
+        // 2. 顧客監視 (既存処理)
+        const q = query(collection(db, "tenants", tenantId, "customers"), where("assignedCastId", "==", myUid));
+        onSnapshot(q, (snapshot) => {
+            myCustomers = [];
+            if(snapshot.empty) {
+                listContainer.innerHTML = `<div style="text-align:center; padding:30px; color:#999;">顧客が登録されていません</div>`;
+                return;
+            }
+            snapshot.forEach(doc => { myCustomers.push({ id: doc.id, ...doc.data() }); });
+            myCustomers.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+            renderList();
+        });
+
+        function renderList() {
+            const term = searchInput.value.toLowerCase();
+            const filtered = myCustomers.filter(c => (c.name || "").toLowerCase().includes(term));
+            listContainer.innerHTML = "";
+            filtered.forEach(c => {
+                const div = document.createElement('div');
+                div.className = "cust-card";
+                div.innerHTML = `
+                    <div class="cust-name">${c.name}</div>
+                    <div class="cust-info">${c.age ? c.age + "歳" : ""} ${c.job ? "/ " + c.job : ""}</div>
+                    <div class="cust-note">${c.notes || "メモなし"}</div>
+                `;
+                div.onclick = () => openModal(c);
+                listContainer.appendChild(div);
+            });
+        }
+
+        searchInput.addEventListener('input', renderList);
+
+        window.openModal = (data = null) => {
+            form.reset();
+            if (data) {
+                document.getElementById('modal-title').textContent = "顧客編集";
+                document.getElementById('cust-id').value = data.id;
+                document.getElementById('cust-name').value = data.name;
+                document.getElementById('cust-age').value = data.age || "";
+                document.getElementById('cust-job').value = data.job || "";
+                document.getElementById('cust-notes').value = data.notes || "";
+            } else {
+                document.getElementById('modal-title').textContent = "新規顧客登録";
+                document.getElementById('cust-id').value = "";
+            }
+            modal.style.display = 'flex';
+        };
+
+        window.closeModal = () => modal.style.display = 'none';
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('cust-id').value;
+            const data = {
+                name: document.getElementById('cust-name').value,
+                age: document.getElementById('cust-age').value,
+                job: document.getElementById('cust-job').value,
+                notes: document.getElementById('cust-notes').value,
+                lastUpdated: serverTimestamp(),
+                assignedCastId: myUid
+            };
+            try {
+                if (id) await updateDoc(doc(db, "tenants", tenantId, "customers", id), data);
+                else await addDoc(collection(db, "tenants", tenantId, "customers"), { ...data, createdAt: serverTimestamp() });
+                closeModal();
+            } catch (e) { alert("エラー: " + e.message); }
+        });
+
+        // 初期化時にチェック実行
+        checkAttendance();
+
+    </script>
+</body>
+</html>

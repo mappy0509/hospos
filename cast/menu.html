@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>HOSPOS - Menu</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* メニュー画面専用スタイル */
+        body { background-color: #f8f9fa; padding-bottom: 100px; } /* カートボタン用の余白 */
+        
+        .page-header {
+            background: white;
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .back-btn { background: none; border: none; font-size: 1.2rem; color: var(--text-main); cursor: pointer; }
+        .header-info { flex: 1; }
+        .header-table { font-weight: bold; font-size: 1.1rem; }
+        .header-total { font-size: 0.8rem; color: var(--text-sub); }
+
+        /* カテゴリバー (横スクロール) */
+        .category-bar {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 15px 20px;
+            background: white;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+            position: sticky;
+            top: 60px; /* ヘッダーの下 */
+            z-index: 19;
+            /* スクロールバーを隠す */
+            -ms-overflow-style: none; 
+            scrollbar-width: none;
+        }
+        .category-bar::-webkit-scrollbar { display: none; }
+
+        .cat-pill {
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: #f1f3f5;
+            color: var(--text-sub);
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .cat-pill.active {
+            background: var(--primary-color);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+        }
+
+        /* 商品リスト */
+        .product-list { padding: 20px; }
+        .product-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .prod-info { flex: 1; }
+        .prod-name { font-weight: bold; margin-bottom: 4px; }
+        .prod-price { color: var(--text-sub); font-size: 0.9rem; }
+        .prod-tag {
+            font-size: 0.6rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #fff0f6;
+            color: #c026d3; /* ピンク */
+            margin-left: 5px;
+            font-weight: bold;
+        }
+
+        /* 数量操作 */
+        .qty-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f8f9fa;
+            padding: 5px;
+            border-radius: 8px;
+        }
+        .qty-btn {
+            width: 30px; height: 30px;
+            border: none; background: white;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-weight: bold;
+            color: var(--primary-color);
+            cursor: pointer;
+        }
+        .qty-val { font-weight: bold; min-width: 20px; text-align: center; }
+        .qty-val.hidden { opacity: 0.3; }
+
+        /* カートフローティングボタン */
+        .cart-fab {
+            position: fixed;
+            bottom: 20px;
+            left: 5%;
+            width: 90%;
+            background: var(--primary-color);
+            color: white;
+            padding: 15px;
+            border-radius: 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 5px 20px rgba(0,123,255,0.4);
+            cursor: pointer;
+            z-index: 100;
+            transition: transform 0.2s;
+        }
+        .cart-fab:active { transform: scale(0.98); }
+        .cart-badge {
+            background: white;
+            color: var(--primary-color);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        /* 注文確認モーダル */
+        .modal-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: flex-end;
+        }
+        .modal-sheet {
+            background: white;
+            width: 100%;
+            border-radius: 20px 20px 0 0;
+            padding: 25px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .cart-item {
+            display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee;
+        }
+
+        /* テスト用ボタン */
+        .demo-btn {
+            display: block; width: 100%; padding: 10px; 
+            background: #6c757d; color: white; text-align: center; 
+            margin-top: 20px; border-radius: 8px; text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page-header">
+        <button class="back-btn" onclick="history.back()"><i class="fas fa-arrow-left"></i></button>
+        <div class="header-info">
+            <div class="header-table">卓 <span id="table-name">Loading...</span></div>
+            <div class="header-total">現在の総額: <span id="current-total">¥0</span></div>
+        </div>
+    </div>
+
+    <div class="category-bar" id="category-container">
+        <div class="cat-pill active">All</div>
+        </div>
+
+    <div class="product-list" id="product-container">
+        <div style="text-align:center; padding:20px;">読み込み中...</div>
+    </div>
+
+    <div style="padding: 0 20px;">
+        <button id="create-demo-products" class="demo-btn">🛠️ テスト用商品を一括登録する</button>
+    </div>
+
+    <div class="cart-fab" id="cart-btn" style="display:none;">
+        <span style="font-weight:bold;">注文内容を確認</span>
+        <div>
+            <span id="cart-total-price" style="margin-right:10px;">¥0</span>
+            <span class="cart-badge" id="cart-count">0</span>
+        </div>
+    </div>
+
+    <div id="cart-modal" class="modal-overlay">
+        <div class="modal-sheet">
+            <h3 style="margin-bottom:20px;">注文確認</h3>
+            <div id="cart-items-list"></div>
+            <hr style="margin:20px 0; border:0; border-top:1px dashed #ccc;">
+            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1.2rem; margin-bottom:20px;">
+                <span>合計</span>
+                <span id="modal-total">¥0</span>
+            </div>
+            <button id="confirm-order-btn" class="btn-primary">注文を確定する</button>
+            <button id="close-cart" style="width:100%; padding:15px; border:none; background:white; color:#666; margin-top:10px;">閉じる</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from '../assets/js/firebase-config.js';
+        import { doc, getDoc, collection, getDocs, addDoc, updateDoc, serverTimestamp, increment, writeBatch } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const params = new URLSearchParams(window.location.search);
+        const slipId = params.get('slipId');
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        const myUid = sessionStorage.getItem('hospos_uid');
+
+        if (!tenantId || !slipId) {
+            alert("エラー: 伝票情報が不足しています");
+            window.location.href = "order.html";
+        }
+
+        const tableDisplay = document.getElementById('table-name');
+        const totalDisplay = document.getElementById('current-total');
+        const productContainer = document.getElementById('product-container');
+        const catContainer = document.getElementById('category-container');
+        
+        // カート関連
+        const cartBtn = document.getElementById('cart-btn');
+        const cartCount = document.getElementById('cart-count');
+        const cartTotal = document.getElementById('cart-total-price');
+        const cartModal = document.getElementById('cart-modal');
+        const cartList = document.getElementById('cart-items-list');
+        
+        let products = [];
+        let cart = {}; // { productId: { name, price, qty, isCall } }
+        let slipData = null;
+
+        // 1. 伝票情報の取得
+        async function loadSlip() {
+            const slipRef = doc(db, "tenants", tenantId, "slips", slipId);
+            const snap = await getDoc(slipRef);
+            if (snap.exists()) {
+                slipData = snap.data();
+                tableDisplay.textContent = slipData.tableId;
+                totalDisplay.textContent = `¥${slipData.totalAmount.toLocaleString()}`;
+            }
+        }
+
+        // 2. 商品情報の取得
+        async function loadProducts() {
+            const q = collection(db, "tenants", tenantId, "products");
+            const snap = await getDocs(q);
+            
+            products = [];
+            const categories = new Set();
+
+            snap.forEach(doc => {
+                const p = doc.data();
+                p.id = doc.id;
+                products.push(p);
+                if(p.category) categories.add(p.category);
+            });
+
+            renderCategories(Array.from(categories));
+            renderProducts("All");
+        }
+
+        // 3. カテゴリ描画
+        function renderCategories(cats) {
+            // 'All' 以外を一旦クリアしたいが、HTMLに直書きしてるので追加する形
+            const existing = catContainer.querySelectorAll('.cat-pill:not(:first-child)');
+            existing.forEach(e => e.remove());
+
+            cats.forEach(cat => {
+                const pill = document.createElement('div');
+                pill.className = "cat-pill";
+                pill.textContent = cat;
+                pill.onclick = () => {
+                    document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+                    renderProducts(cat);
+                };
+                catContainer.appendChild(pill);
+            });
+            
+            // Allボタンのイベント
+            catContainer.firstElementChild.onclick = () => {
+                document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+                catContainer.firstElementChild.classList.add('active');
+                renderProducts("All");
+            };
+        }
+
+        // 4. 商品リスト描画
+        function renderProducts(filterCat) {
+            productContainer.innerHTML = "";
+            const filtered = filterCat === "All" ? products : products.filter(p => p.category === filterCat);
+
+            if (filtered.length === 0) {
+                productContainer.innerHTML = "<p style='text-align:center; color:#999;'>商品がありません</p>";
+                return;
+            }
+
+            filtered.forEach(p => {
+                const qty = cart[p.id]?.qty || 0;
+                
+                const div = document.createElement('div');
+                div.className = "product-card";
+                div.innerHTML = `
+                    <div class="prod-info">
+                        <div class="prod-name">
+                            ${p.name}
+                            ${p.isCallTarget ? '<span class="prod-tag">コール対象</span>' : ''}
+                        </div>
+                        <div class="prod-price">¥${p.price.toLocaleString()}</div>
+                    </div>
+                    <div class="qty-control">
+                        <button class="qty-btn" onclick="updateCart('${p.id}', -1)">-</button>
+                        <span class="qty-val ${qty > 0 ? '' : 'hidden'}" id="qty-${p.id}">${qty}</span>
+                        <button class="qty-btn" onclick="updateCart('${p.id}', 1)">+</button>
+                    </div>
+                `;
+                productContainer.appendChild(div);
+            });
+        }
+
+        // 5. カート操作 (Global関数化)
+        window.updateCart = (pid, change) => {
+            const product = products.find(p => p.id === pid);
+            if (!cart[pid]) cart[pid] = { ...product, qty: 0 };
+            
+            cart[pid].qty += change;
+            if (cart[pid].qty < 0) cart[pid].qty = 0;
+
+            // UI更新
+            const qtyEl = document.getElementById(`qty-${pid}`);
+            if (qtyEl) {
+                qtyEl.textContent = cart[pid].qty;
+                qtyEl.classList.toggle('hidden', cart[pid].qty === 0);
+            }
+
+            if (cart[pid].qty === 0) delete cart[pid];
+            updateCartButton();
+        };
+
+        function updateCartButton() {
+            const totalQty = Object.values(cart).reduce((sum, item) => sum + item.qty, 0);
+            const totalPrice = Object.values(cart).reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+            if (totalQty > 0) {
+                cartBtn.style.display = "flex";
+                cartCount.textContent = totalQty;
+                cartTotal.textContent = `¥${totalPrice.toLocaleString()}`;
+            } else {
+                cartBtn.style.display = "none";
+            }
+        }
+
+        // 6. 注文確定処理
+        cartBtn.onclick = () => {
+            renderCartModal();
+            cartModal.style.display = 'flex';
+        };
+        document.getElementById('close-cart').onclick = () => cartModal.style.display = 'none';
+
+        function renderCartModal() {
+            cartList.innerHTML = "";
+            let total = 0;
+            Object.values(cart).forEach(item => {
+                const subtotal = item.price * item.qty;
+                total += subtotal;
+                cartList.innerHTML += `
+                    <div class="cart-item">
+                        <div>${item.name} x ${item.qty}</div>
+                        <div>¥${subtotal.toLocaleString()}</div>
+                    </div>
+                `;
+            });
+            document.getElementById('modal-total').textContent = `¥${total.toLocaleString()}`;
+        }
+
+        document.getElementById('confirm-order-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('confirm-order-btn');
+            btn.disabled = true;
+            btn.textContent = "送信中...";
+
+            try {
+                const batch = writeBatch(db);
+                const slipRef = doc(db, "tenants", tenantId, "slips", slipId);
+                
+                let orderTotal = 0;
+                let callAmountAdd = 0; // コール対象の金額
+
+                // 各アイテムを orders サブコレクションに追加
+                const timestamp = new Date(); // JS Date object for manual use if needed, but serverTimestamp is better
+                
+                // バッチ書き込みだとaddDocが使えないので、collection参照からdocRefを作る
+                for (const item of Object.values(cart)) {
+                    const newOrderRef = doc(collection(db, "tenants", tenantId, "slips", slipId, "orders"));
+                    batch.set(newOrderRef, {
+                        name: item.name,
+                        price: item.price,
+                        quantity: item.qty,
+                        productId: item.id,
+                        orderedBy: myUid,
+                        status: 'served', // 本来は ordered -> served だが簡易化
+                        createdAt: serverTimestamp(),
+                        isCallTarget: item.isCallTarget || false
+                    });
+
+                    const lineTotal = item.price * item.qty;
+                    orderTotal += lineTotal;
+                    
+                    if (item.isCallTarget) {
+                        callAmountAdd += lineTotal;
+                    }
+                }
+
+                // 伝票の合計金額などを更新
+                batch.update(slipRef, {
+                    totalAmount: increment(orderTotal),
+                    callBatchAmount: increment(callAmountAdd), // 未消化コール金額に加算
+                    lastUpdated: serverTimestamp()
+                });
+
+                await batch.commit();
+
+                alert("注文が完了しました！");
+                window.location.href = `order.html`; // テーブル選択へ戻る
+
+            } catch (error) {
+                console.error(error);
+                alert("注文エラーが発生しました");
+                btn.disabled = false;
+            }
+        });
+
+        // --- 開発用: デモ商品作成ツール ---
+        document.getElementById('create-demo-products').onclick = async (e) => {
+            e.preventDefault();
+            if(!confirm("テスト用の商品データを作成しますか？")) return;
+
+            const demoProducts = [
+                { name: "アサヒスーパードライ", price: 1000, category: "Beer", isCallTarget: false },
+                { name: "鏡月 Green", price: 5000, category: "Shochu", isCallTarget: false },
+                { name: "カフェ・ド・パリ", price: 30000, category: "Champagne", isCallTarget: true },
+                { name: "モエ・エ・シャンドン 白", price: 80000, category: "Champagne", isCallTarget: true },
+                { name: "ドン・ペリニヨン", price: 150000, category: "Champagne", isCallTarget: true },
+                { name: "エンジェル・シャンパン", price: 500000, category: "Champagne", isCallTarget: true },
+                { name: "フルーツ盛り合わせ", price: 10000, category: "Food", isCallTarget: false },
+                { name: "ミネラルウォーター", price: 500, category: "SoftDrink", isCallTarget: false },
+            ];
+
+            const colRef = collection(db, "tenants", tenantId, "products");
+            for(const p of demoProducts) {
+                await addDoc(colRef, { ...p, createdAt: serverTimestamp() });
+            }
+            alert("商品を登録しました！画面をリロードします。");
+            location.reload();
+        };
+
+        // 初期実行
+        loadSlip();
+        loadProducts();
+
+    </script>
+</body>
+</html>

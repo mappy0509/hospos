@@ -1,0 +1,172 @@
+HOSPOS 開発・引き継ぎドキュメント (v1.1)
+🤖 AI開発者への指示
+あなたは現在、ホストクラブ専用POSシステム「HOSPOS」の開発を引き継ぐリードエンジニアです。 以下のプロジェクト概要、技術スタック、最新の進捗状況、および**「絶対的なルール」**を熟読し、文脈を完全に理解した上でサポートを行ってください。
+
+1. プロジェクト概要
+プロジェクト名: HOSPOS (Host Club POS System)
+
+目的: ホストクラブの業務（接客、注文、会計、勤怠、給与、分析）を一元管理するSaaS型アプリケーション。
+
+アーキテクチャ: マルチテナント型（1つのアプリで複数店舗が利用。データは店舗ごとに完全に分離）。
+
+2. 技術スタック・開発環境
+※重要：学習コストとデプロイの手軽さを優先し、以下の構成を厳守すること。
+
+Frontend: HTML5, CSS3, Vanilla JavaScript (ES Modules)
+
+禁止事項: React, Vue, TypeScript, Webpack/Viteなどのビルドツール使用は禁止。
+
+ブラウザで直接動く生のコードで記述する。
+
+Backend / DB: Firebase (v12.6.0) via CDN
+
+Authentication (Email/Password)
+
+Firestore (NoSQL Database)
+
+Design:
+
+Admin (PC/Tablet): サイドバーメニュー、ダッシュボード形式。
+
+Cast (Smartphone): モバイルファースト、ボトムナビゲーション、片手操作UI。
+
+Libraries:
+
+FontAwesome (CDN)
+
+Chart.js (CDN / 売上分析用)
+
+SortableJS (CDN / ドラッグ&ドロップ用)
+
+3. ディレクトリ構成 (v1.1 最新)
+Plaintext
+
+/ (root)
+  ├── index.html (ログイン)
+  ├── register.html (店舗新規登録)
+  ├── cast-register.html (キャスト招待登録)
+  ├── /admin (管理者・内勤用)
+  │    ├── dashboard.html (卓移動・詳細遷移)
+  │    ├── slips.html (伝票履歴)
+  │    ├── slip-detail.html (会計・レジ・レシート)
+  │    ├── call-management.html (コール管理)
+  │    ├── shokai-control.html (初回・付け回し)
+  │    ├── products.html (商品・在庫連携)
+  │    ├── inventory.html (在庫管理)
+  │    ├── cast-list.html (キャスト一覧・招待)
+  │    ├── attendance.html (勤怠管理)
+  │    ├── customers.html (全顧客管理)
+  │    ├── sales-analysis.html (売上分析)
+  │    ├── ranking.html (リアルタイムランキング)
+  │    ├── daily-report.html (日報生成)
+  │    └── settings.html (店舗設定・コール動的設定)
+  ├── /cast (キャスト・ホスト用)
+  │    ├── home.html (出勤/退勤・ステータス)
+  │    ├── order.html (テーブル選択・入店)
+  │    ├── menu.html (注文・カート)
+  │    ├── my-customers.html (マイ顧客リスト)
+  │    └── profile.html (売上確認・設定)
+  └── /assets
+       ├── /css (style.css - 全体共通・スマホNav制御含む)
+       └── /js (firebase-config.js - 初期化設定)
+4. データベース設計 (Firestore)
+鉄の掟: 全てのデータは tenants/{tenantId}/ の配下に置くこと。
+
+ルート: tenants (Collection)
+
+ドキュメント: {tenantId}
+
+users: 従業員 (role: 'admin'|'inner'|'cast', currentStatus: 'working'|'off')
+
+products: 商品マスタ (linkedInventoryId, isCallTarget)
+
+inventory: 在庫マスタ (currentStock, alertThreshold)
+
+slips: 伝票 (status: 'active'|'paid'|'void', visitType: 'free'|'shime'|'eda')
+
+orders: 注文サブコレクション
+
+customers: 顧客情報 (assignedCastId)
+
+attendance: 打刻ログ
+
+config (Map): 店舗設定（税率、端数処理、コール設定配列など）
+
+例外: sys_user_mapping (Collection)
+
+ログイン時に Auth UID から tenantId を引くためのマッピング用。
+
+5. 実装済み機能と詳細ロジック (現状 v1.1)
+A. キャスト機能 (Mobile) - セキュリティ強化版
+出勤管理 & ナビゲーションロック:
+
+重要仕様: ユーザーの currentStatus が 'off' (退勤) の場合、ボトムナビゲーションの「注文」タブを強制的にロックする。
+
+実装方法:
+
+CSS: .locked クラスでグレーアウト＆カーソル禁止。
+
+JS: checkStatus() 関数でクリックイベントを遮断し、href 属性も除去する。
+
+適用範囲: home.html, my-customers.html, profile.html 全ページ共通。
+
+マイページ (Profile):
+
+売上表示ロジック: 本日の個人の売上を表示するが、「指名 (visitType: 'shime')」の伝票のみを集計する。フリー客の売上は個人の成績には含めない。
+
+オーダー:
+
+入店処理（指名/フリー選択）→ メニュー選択 → カート → 注文確定。
+
+在庫連携: 商品設定で「在庫連携」がONの場合、注文数 × 設定数分、在庫(inventory)を減算する。
+
+B. 管理者機能 (Admin)
+シャンパンコール管理:
+
+動的グレード判定: settings.html で設定された「グレードリスト（金額・曲・色）」に基づき、未消化金額(callBatchAmount)からグレードを自動判定。
+
+マイク担当を「メイン」「サブ」2名選択可能。
+
+会計・レジ:
+
+複合決済: 現金＋カード＋売掛（Credit）の組み合わせ決済に対応。
+
+レシート: 80mm幅サーマルプリンタ対応（CSS @media print）。
+
+初回・付け回し:
+
+フリー卓のみを抽出し、誰を何分つけたかの履歴を記録。
+
+分析・日報:
+
+売上分析: Chart.jsによる日次/月次グラフ（インデックスエラー回避のため、クライアントサイドで日付ソート・フィルタリングを実施）。
+
+日報: LINE送信用の整形済みテキスト自動生成・コピー機能。
+
+ランキング: 売上／本数の切り替え、リアルタイム反映。
+
+6. 開発における絶対ルール (Do's & Don'ts)
+インデックスエラーの回避:
+
+Firestoreの複合クエリ（where と orderBy の併用）は避ける。
+
+対策: 基本的に where だけでデータを取得し、並び替え（Sort）や期間フィルタは JavaScript (Array.sort, filter) で行うこと。
+
+キャスト画面のセキュリティ:
+
+新しいキャスト用ページを作る際は、必ず assets/css/style.css の .locked クラスと、JSによる checkStatus ロジックを組み込むこと。「退勤中に注文できる」バグは絶対に起こさない。
+
+1ページ1ファイル:
+
+メンテナンス性を高めるため、SPA（Single Page Application）にはしない。
+
+Firebase SDKバージョン:
+
+v12.6.0 (Modular Web SDK) を使用。
+
+7. 次のタスク / 未解決事項
+全機能の実装は完了（MVP完成）。
+
+今後の作業は、実際の店舗運用フィードバックに基づいたUI調整や、特定のエッジケース（通信エラー時のハンドリング等）の強化が中心。
+
+以上の内容を前提として、開発サポートを開始してください。

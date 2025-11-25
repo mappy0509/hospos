@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOSPOS - 在庫管理</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 共通レイアウト */
+        .dashboard-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
+        .main-content { flex: 1; padding: 30px; background-color: var(--bg-color); }
+        
+        .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
+        .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
+        .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
+
+        /* 在庫テーブル */
+        .inventory-table-container {
+            background: white; border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm);
+        }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #666; font-weight: bold; }
+        
+        /* 在庫数の強調 */
+        .stock-val { font-weight: bold; font-size: 1.1rem; }
+        .stock-low { color: #dc3545; background-color: #fff5f5; } /* アラート行 */
+        .alert-badge { 
+            background: #dc3545; color: white; padding: 2px 8px; border-radius: 4px; 
+            font-size: 0.75rem; margin-left: 10px; display: none;
+        }
+        .stock-low .alert-badge { display: inline-block; }
+
+        /* 操作ボタン */
+        .qty-btn {
+            width: 30px; height: 30px; border: 1px solid #ddd; background: white;
+            border-radius: 4px; cursor: pointer; font-weight: bold; color: #555;
+        }
+        .qty-btn:hover { background: #eee; }
+        
+        .btn-add-stock { background: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-bottom: 20px; }
+        .btn-delete { color: #dc3545; background: none; border: none; cursor: pointer; }
+
+        /* モーダル */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; box-shadow: var(--shadow-lg); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+            <nav>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
+                <a href="slips.html" class="menu-item"><i class="fas fa-file-invoice-dollar"></i> 伝票一覧</a>
+                <a href="call-management.html" class="menu-item"><i class="fas fa-music"></i> コール管理</a>
+                <a href="shokai-control.html" class="menu-item"><i class="fas fa-users"></i> 初回・付け回し</a>
+                <a href="products.html" class="menu-item"><i class="fas fa-wine-bottle"></i> 商品管理</a>
+                <a href="inventory.html" class="menu-item active"><i class="fas fa-boxes"></i> 在庫管理</a>
+                <a href="cast-list.html" class="menu-item"><i class="fas fa-user-tie"></i> キャスト管理</a>
+                <a href="attendance.html" class="menu-item"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="customers.html" class="menu-item"><i class="fas fa-address-book"></i> 顧客管理</a>
+                <a href="sales-analysis.html" class="menu-item"><i class="fas fa-chart-line"></i> 売上分析</a>
+                <a href="ranking.html" class="menu-item"><i class="fas fa-trophy"></i> ランキング</a>
+                <a href="daily-report.html" class="menu-item"><i class="fas fa-file-alt"></i> 日報・ログ</a>
+                <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i> 店舗設定</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2><i class="fas fa-boxes"></i> 在庫管理 (Assets)</h2>
+                <button id="open-modal-btn" class="btn-add-stock"><i class="fas fa-plus"></i> 新規在庫登録</button>
+            </div>
+            <p style="color:#666; margin-bottom:20px;">
+                メニューと紐付けるための「現物」を管理します。<br>
+                ※在庫数が発注点を下回ると赤く表示されます。
+            </p>
+
+            <div class="inventory-table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:30%;">在庫名</th>
+                            <th style="width:15%;">カテゴリ</th>
+                            <th style="width:20%;">現在庫数</th>
+                            <th style="width:15%;">発注点</th>
+                            <th style="width:20%;">操作 (棚卸)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-list">
+                        <tr><td colspan="5" style="text-align:center; padding:20px;">読み込み中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="inv-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-bottom:20px;">新規在庫アイテム登録</h3>
+            <form id="inv-form">
+                <div class="form-group">
+                    <label>在庫名 (例: 鏡月ボトル, 缶ビール)</label>
+                    <input type="text" id="inv-name" required>
+                </div>
+                <div class="form-group">
+                    <label>管理カテゴリ (例: 焼酎, 割り材)</label>
+                    <input type="text" id="inv-category" placeholder="任意">
+                </div>
+                <div style="display:flex; gap:15px;">
+                    <div class="form-group" style="flex:1;">
+                        <label>現在の在庫数</label>
+                        <input type="number" id="inv-stock" value="0" min="0" required>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>発注点アラート (下回ったら通知)</label>
+                        <input type="number" id="inv-threshold" value="5" min="0" required>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+                    <button type="button" id="close-modal" class="btn-add-stock" style="background:#6c757d;">キャンセル</button>
+                    <button type="submit" class="btn-add-stock">登録する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from '../assets/js/firebase-config.js';
+        import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        if (!tenantId) window.location.href = "../index.html";
+
+        const invList = document.getElementById('inventory-list');
+        const modal = document.getElementById('inv-modal');
+        const form = document.getElementById('inv-form');
+
+        // 1. リアルタイム監視
+        function startInventoryListener() {
+            // シンプルにデータを持ってくるだけにする
+const q = query(collection(db, "tenants", tenantId, "inventory"));
+            
+            onSnapshot(q, (snapshot) => {
+                invList.innerHTML = "";
+                if(snapshot.empty) {
+                    invList.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#999;">データがありません</td></tr>`;
+                    return;
+                }
+
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const isLow = data.currentStock <= data.alertThreshold;
+                    
+                    const tr = document.createElement('tr');
+                    if(isLow) tr.classList.add('stock-low'); // 赤くする
+
+                    tr.innerHTML = `
+                        <td>
+                            ${data.name}
+                            <span class="alert-badge">発注!</span>
+                        </td>
+                        <td>${data.category || '-'}</td>
+                        <td>
+                            <span class="stock-val">${data.currentStock}</span>
+                        </td>
+                        <td>${data.alertThreshold} 以下</td>
+                        <td>
+                            <button class="qty-btn" onclick="updateStock('${docSnap.id}', -1)">-</button>
+                            <button class="qty-btn" onclick="updateStock('${docSnap.id}', 1)">+</button>
+                            <button class="btn-delete" onclick="deleteStock('${docSnap.id}', '${data.name}')" style="margin-left:10px;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    invList.appendChild(tr);
+                });
+            });
+        }
+
+        // 2. 在庫数クイック更新 (Global function)
+        window.updateStock = async (id, change) => {
+            try {
+                const ref = doc(db, "tenants", tenantId, "inventory", id);
+                await updateDoc(ref, {
+                    currentStock: increment(change),
+                    lastUpdated: serverTimestamp()
+                });
+            } catch(e) { console.error(e); }
+        };
+
+        window.deleteStock = async (id, name) => {
+            if(!confirm(`在庫「${name}」を削除しますか？\n※これを使用している商品がある場合、商品側の設定も変更してください。`)) return;
+            try {
+                await deleteDoc(doc(db, "tenants", tenantId, "inventory", id));
+            } catch(e) { console.error(e); }
+        };
+
+        // 3. 新規登録
+        document.getElementById('open-modal-btn').onclick = () => modal.style.display = 'flex';
+        document.getElementById('close-modal').onclick = () => modal.style.display = 'none';
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = form.querySelector('button[type="submit"]');
+            btn.disabled = true;
+
+            const name = document.getElementById('inv-name').value;
+            const category = document.getElementById('inv-category').value;
+            const stock = Number(document.getElementById('inv-stock').value);
+            const threshold = Number(document.getElementById('inv-threshold').value);
+
+            try {
+                await addDoc(collection(db, "tenants", tenantId, "inventory"), {
+                    name, category, 
+                    currentStock: stock,
+                    alertThreshold: threshold,
+                    createdAt: serverTimestamp()
+                });
+                modal.style.display = 'none';
+                form.reset();
+            } catch(e) {
+                alert("登録エラー: " + e.message);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        startInventoryListener();
+    </script>
+</body>
+</html>

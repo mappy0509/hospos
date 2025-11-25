@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOSPOS - キャスト管理</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* キャスト管理専用スタイル */
+        .dashboard-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
+        .main-content { flex: 1; padding: 40px; background-color: var(--bg-color); }
+        
+        /* 共通メニュー */
+        .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
+        .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
+        .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
+
+        /* ヘッダーエリア */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .page-header h2 { margin: 0; }
+
+        /* テーブルスタイル */
+        .cast-table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow-sm);
+            overflow: hidden; /* 角丸用 */
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+        th, td {
+            padding: 16px 24px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: var(--text-sub);
+            font-size: 0.9rem;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background-color: #fafafa; }
+
+        /* ステータスバッジ */
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .badge-admin { background-color: #e6f2ff; color: #007bff; } /* 管理者：青 */
+        .badge-cast { background-color: #fff3cd; color: #856404; }  /* キャスト：黄 */
+        .badge-inner { background-color: #d4edda; color: #155724; } /* 内勤：緑 */
+
+        /* 招待モーダル */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+        }
+        .invite-url-box {
+            background: #f1f3f5;
+            padding: 15px;
+            border-radius: 8px;
+            word-break: break-all;
+            margin: 20px 0;
+            font-family: monospace;
+            color: var(--primary-color);
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+            <nav>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
+                <a href="slips.html" class="menu-item"><i class="fas fa-file-invoice-dollar"></i> 伝票一覧</a>
+                <a href="call-management.html" class="menu-item"><i class="fas fa-music"></i> コール管理</a>
+                <a href="shokai-control.html" class="menu-item"><i class="fas fa-users"></i> 初回・付け回し</a>
+                <a href="products.html" class="menu-item"><i class="fas fa-wine-bottle"></i> 商品管理</a>
+                <a href="inventory.html" class="menu-item"><i class="fas fa-boxes"></i> 在庫管理</a>
+                <a href="cast-list.html" class="menu-item active"><i class="fas fa-user-tie"></i> キャスト管理</a> <a href="attendance.html" class="menu-item"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="customers.html" class="menu-item"><i class="fas fa-address-book"></i> 顧客管理</a>
+                <a href="sales-analysis.html" class="menu-item"><i class="fas fa-chart-line"></i> 売上分析</a>
+                <a href="ranking.html" class="menu-item"><i class="fas fa-trophy"></i> ランキング</a>
+                <a href="daily-report.html" class="menu-item"><i class="fas fa-file-alt"></i> 日報・ログ</a>
+                <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i> 店舗設定</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <div class="page-header">
+                <h2>キャスト・従業員一覧</h2>
+                <button id="invite-btn" class="btn-primary" style="width: auto; padding: 10px 24px;">
+                    <i class="fas fa-plus"></i> 新規キャスト招待
+                </button>
+            </div>
+
+            <div class="cast-table-container">
+                <table id="cast-table">
+                    <thead>
+                        <tr>
+                            <th>名前</th>
+                            <th>役職 (ロール)</th>
+                            <th>メールアドレス</th>
+                            <th>ステータス</th>
+                            <th>登録日</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cast-list-body">
+                        <tr><td colspan="6" style="text-align:center;">読み込み中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="invite-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3><i class="fas fa-paper-plane"></i> スタッフ招待</h3>
+            <p style="color: var(--text-sub); margin-top: 10px;">
+                以下のURLをコピーして、LINEなどで<br>新規スタッフに送ってください。
+            </p>
+            
+            <div id="invite-url" class="invite-url-box">
+                URL生成中...
+            </div>
+
+            <button id="copy-btn" class="btn-primary">URLをコピーする</button>
+            <button id="close-modal" class="btn-primary" style="background-color: #6c757d; margin-top: 10px;">閉じる</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from '../assets/js/firebase-config.js';
+        import { collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        if (!tenantId) window.location.href = "../index.html";
+
+        const tableBody = document.getElementById('cast-list-body');
+
+        // 1. 従業員一覧をリアルタイム監視 (onSnapshot)
+        //    新しい人が登録したら、リロードしなくても勝手に表に追加されます
+        const q = query(collection(db, "tenants", tenantId, "users"), orderBy("createdAt", "desc"));
+        
+        onSnapshot(q, (snapshot) => {
+            tableBody.innerHTML = ""; // 一旦クリア
+            
+            if(snapshot.empty) {
+                tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px;">データがありません</td></tr>`;
+                return;
+            }
+
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const date = data.createdAt ? new Date(data.createdAt.toDate()).toLocaleDateString('ja-JP') : "-";
+                
+                // ロールに応じたバッジ
+                let roleBadge = `<span class="badge badge-cast">キャスト</span>`;
+                if(data.role === 'admin') roleBadge = `<span class="badge badge-admin">管理者</span>`;
+                if(data.role === 'inner') roleBadge = `<span class="badge badge-inner">内勤</span>`;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight:bold;">${data.name}</td>
+                    <td>${roleBadge}</td>
+                    <td>${data.email}</td>
+                    <td>${data.isActive ? '<span style="color:green">在籍中</span>' : '<span style="color:red">退職済</span>'}</td>
+                    <td>${date}</td>
+                    <td>
+                        <button class="btn-icon" style="border:1px solid #ddd; background:#fff; padding:5px 10px; border-radius:4px; cursor:pointer;">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        });
+
+        // 2. 招待機能のロジック
+        const inviteBtn = document.getElementById('invite-btn');
+        const modal = document.getElementById('invite-modal');
+        const closeModal = document.getElementById('close-modal');
+        const copyBtn = document.getElementById('copy-btn');
+        const urlBox = document.getElementById('invite-url');
+
+        inviteBtn.addEventListener('click', () => {
+            // 現在のURLのドメイン部分 + キャスト登録ページ + 店舗IDパラメータ
+            // 例: https://hospos.com/cast-register.html?tid=ABC12345
+            const origin = window.location.origin;
+            
+            // ローカル開発環境などでパスがずれる場合を考慮し、絶対パス調整が必要な場合がありますが、
+            // 基本的にはルート直下の cast-register.html を指すようにします。
+            // ※注意: VSCodeのLiveServer等でサブフォルダで動いている場合はパスの調整が必要です。
+            let baseUrl = origin + "/cast-register.html";
+            
+            // もし現在地が /hospos/admin/cast-list.html なら /hospos/cast-register.html にしたい
+            // 簡易的なパス解決:
+            const pathArray = window.location.pathname.split('/');
+            pathArray.pop(); // remove 'cast-list.html'
+            pathArray.pop(); // remove 'admin'
+            const rootPath = pathArray.join('/');
+            
+            const inviteLink = `${origin}${rootPath}/cast-register.html?tid=${tenantId}`;
+            
+            urlBox.textContent = inviteLink;
+            modal.style.display = 'flex';
+        });
+
+        closeModal.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(urlBox.textContent).then(() => {
+                copyBtn.textContent = "コピーしました！";
+                setTimeout(() => copyBtn.textContent = "URLをコピーする", 2000);
+            });
+        });
+
+        // モーダルの外側をクリックで閉じる
+        window.addEventListener('click', (e) => {
+            if (e.target == modal) {
+                modal.style.display = 'none';
+            }
+        });
+
+    </script>
+</body>
+</html>

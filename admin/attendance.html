@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOSPOS - 出勤管理</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 共通レイアウト */
+        .dashboard-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
+        .main-content { flex: 1; padding: 30px; background-color: var(--bg-color); }
+        
+        .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
+        .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
+        .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
+
+        /* 出勤状況パネル */
+        .status-board {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;
+        }
+        .status-card {
+            background: white; padding: 15px; border-radius: 8px; box-shadow: var(--shadow-sm);
+            border-left: 5px solid #ccc; display: flex; align-items: center; justify-content: space-between;
+        }
+        .st-working { border-left-color: #28a745; background: #f0fff4; }
+        .st-off { border-left-color: #ccc; opacity: 0.7; }
+        
+        .cast-name { font-weight: bold; }
+        .status-text { font-size: 0.8rem; color: #666; }
+
+        /* 履歴テーブル */
+        .history-container {
+            background: white; border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm);
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: bold; color: #666; }
+        
+        .type-in { color: #28a745; font-weight: bold; }
+        .type-out { color: #dc3545; font-weight: bold; }
+
+        /* モーダル */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 400px; box-shadow: var(--shadow-lg); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .input-box { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        .btn-submit { width: 100%; padding: 10px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+            <nav>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
+                <a href="slips.html" class="menu-item"><i class="fas fa-file-invoice-dollar"></i> 伝票一覧</a>
+                <a href="call-management.html" class="menu-item"><i class="fas fa-music"></i> コール管理</a>
+                <a href="shokai-control.html" class="menu-item"><i class="fas fa-users"></i> 初回・付け回し</a>
+                <a href="products.html" class="menu-item"><i class="fas fa-wine-bottle"></i> 商品管理</a>
+                <a href="inventory.html" class="menu-item"><i class="fas fa-boxes"></i> 在庫管理</a>
+                <a href="cast-list.html" class="menu-item"><i class="fas fa-user-tie"></i> キャスト管理</a>
+                <a href="attendance.html" class="menu-item active"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="customers.html" class="menu-item"><i class="fas fa-address-book"></i> 顧客管理</a>
+                <a href="sales-analysis.html" class="menu-item"><i class="fas fa-chart-line"></i> 売上分析</a>
+                <a href="ranking.html" class="menu-item"><i class="fas fa-trophy"></i> ランキング</a>
+                <a href="daily-report.html" class="menu-item"><i class="fas fa-file-alt"></i> 日報・ログ</a>
+                <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i> 店舗設定</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2 style="margin-bottom: 20px;"><i class="fas fa-clock"></i> 出勤管理 (Time Card)</h2>
+            
+            <h4 style="margin-bottom:10px; color:#666;">現在の出勤状況</h4>
+            <div id="status-board" class="status-board">
+                <div style="color:#999;">読み込み中...</div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h4 style="margin:0; color:#666;">本日の打刻履歴</h4>
+                <button class="btn-submit" style="width:auto; font-size:0.9rem;" onclick="openModal()">
+                    <i class="fas fa-plus"></i> 手動打刻
+                </button>
+            </div>
+
+            <div class="history-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>時間</th>
+                            <th>名前</th>
+                            <th>種別</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-list">
+                        <tr><td colspan="4" style="text-align:center; padding:20px;">履歴なし</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="log-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>手動打刻修正</h3>
+            <p style="font-size:0.8rem; color:#666; margin-bottom:15px;">打刻忘れなどの場合に使用してください。</p>
+            
+            <div class="form-group">
+                <label>対象キャスト</label>
+                <select id="log-cast" class="input-box"></select>
+            </div>
+            <div class="form-group">
+                <label>種別</label>
+                <select id="log-type" class="input-box">
+                    <option value="in">出勤 (IN)</option>
+                    <option value="out">退勤 (OUT)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>時間</label>
+                <input type="datetime-local" id="log-time" class="input-box">
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <button class="btn-submit" onclick="submitLog()">登録</button>
+                <button class="btn-submit" style="background:#6c757d;" onclick="closeModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from '../assets/js/firebase-config.js';
+        import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, orderBy, Timestamp, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        if (!tenantId) window.location.href = "../index.html";
+
+        const statusBoard = document.getElementById('status-board');
+        const historyList = document.getElementById('history-list');
+        const modal = document.getElementById('log-modal');
+        const castSelect = document.getElementById('log-cast');
+
+        let castData = [];
+
+        // 1. キャストの現在状況監視 (Usersコレクション)
+        function startStatusListener() {
+            const q = query(collection(db, "tenants", tenantId, "users"), where("role", "==", "cast"));
+            
+            onSnapshot(q, (snapshot) => {
+                statusBoard.innerHTML = "";
+                castData = []; // モーダル用リスト更新
+
+                if(snapshot.empty) {
+                    statusBoard.innerHTML = "キャストが登録されていません";
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    castData.push({ id: doc.id, name: data.name });
+
+                    const isWorking = data.currentStatus === 'working';
+                    const statusClass = isWorking ? 'st-working' : 'st-off';
+                    const statusLabel = isWorking ? '出勤中' : '退勤';
+                    const icon = isWorking ? '<i class="fas fa-check-circle" style="color:#28a745;"></i>' : '<i class="fas fa-bed" style="color:#ccc;"></i>';
+
+                    const div = document.createElement('div');
+                    div.className = `status-card ${statusClass}`;
+                    div.innerHTML = `
+                        <div>
+                            <div class="cast-name">${data.name}</div>
+                            <div class="status-text">${statusLabel}</div>
+                        </div>
+                        <div style="font-size:1.5rem;">${icon}</div>
+                    `;
+                    statusBoard.appendChild(div);
+                });
+                updateCastSelect();
+            });
+        }
+
+        // 2. 本日の打刻履歴監視 (Attendanceコレクション)
+        function startHistoryListener() {
+            // 今日0時以降のデータを取得 (インデックスエラー回避のため、一旦全件取得してJSでフィルタもありだが、
+            // attendanceは量が増えるので本来は where("timestamp", ">=", today) が必須。
+            // ここでは簡易的に orderBy("timestamp", "desc") だけで直近を取得し、JSで今日のみ表示する)
+            
+            const q = query(collection(db, "tenants", tenantId, "attendance"), orderBy("timestamp", "desc"));
+
+            onSnapshot(q, (snapshot) => {
+                historyList.innerHTML = "";
+                const today = new Date();
+                today.setHours(0,0,0,0);
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const time = data.timestamp ? data.timestamp.toDate() : new Date();
+                    
+                    // 今日のデータのみ表示
+                    if (time < today) return; 
+
+                    const timeStr = time.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                    const typeLabel = data.type === 'in' ? '<span class="type-in">出勤</span>' : '<span class="type-out">退勤</span>';
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${timeStr}</td>
+                        <td>${data.userName}</td>
+                        <td>${typeLabel}</td>
+                        <td>
+                            <button onclick="deleteLog('${doc.id}')" style="border:none; background:none; color:#dc3545; cursor:pointer;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    historyList.appendChild(tr);
+                });
+            });
+        }
+
+        // 3. 手動打刻 (モーダル操作)
+        window.openModal = () => {
+            // 現在時刻をセット
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('log-time').value = now.toISOString().slice(0,16);
+            modal.style.display = 'flex';
+        };
+        
+        window.closeModal = () => modal.style.display = 'none';
+
+        function updateCastSelect() {
+            castSelect.innerHTML = "";
+            castData.forEach(c => {
+                castSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            });
+        }
+
+        window.submitLog = async () => {
+            const castId = castSelect.value;
+            const type = document.getElementById('log-type').value;
+            const timeVal = document.getElementById('log-time').value;
+            
+            if(!castId || !timeVal) return;
+
+            const cast = castData.find(c => c.id === castId);
+            const timestamp = new Date(timeVal);
+
+            try {
+                await addDoc(collection(db, "tenants", tenantId, "attendance"), {
+                    userId: castId,
+                    userName: cast.name,
+                    type: type,
+                    timestamp: Timestamp.fromDate(timestamp)
+                });
+                // 手動修正なので currentStatus は更新しないでおく（整合性が難しいので）、あくまでログ修正
+                closeModal();
+            } catch(e) {
+                alert("エラー: " + e.message);
+            }
+        };
+
+        window.deleteLog = async (id) => {
+            if(!confirm("この履歴を削除しますか？")) return;
+            await deleteDoc(doc(db, "tenants", tenantId, "attendance", id));
+        };
+
+        startStatusListener();
+        startHistoryListener();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOSPOS Login</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="login-body">
+
+    <div class="login-container">
+        <div class="login-header">
+            <h1>HOSPOS</h1>
+            <p>Host Club POS System</p>
+        </div>
+
+        <form id="login-form">
+            <div class="form-group">
+                <label><i class="fas fa-envelope"></i> メールアドレス</label>
+                <input type="email" id="email" placeholder="admin@example.com" required>
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-lock"></i> パスワード</label>
+                <input type="password" id="password" placeholder="パスワードを入力" required>
+            </div>
+
+            <button type="submit" id="login-btn" class="btn-primary">ログイン</button>
+        </form>
+
+        <div id="error-message" class="error-message"></div>
+        
+        <div class="login-footer">
+            <p>まだアカウントをお持ちでない場合は<br>オーナー登録を行ってください</p>
+            <a href="register.html">新規店舗登録はこちら</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, db } from './assets/js/firebase-config.js';
+        import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { getDoc, doc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const loginForm = document.getElementById('login-form');
+        const errorMsg = document.getElementById('error-message');
+        const loginBtn = document.getElementById('login-btn');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorMsg.textContent = '';
+            loginBtn.disabled = true;
+            loginBtn.textContent = '認証中...';
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                // 1. メール/パスワードで認証
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // 2. このユーザーがどの店舗の所属かを確認 (sys_user_mappingを参照)
+                const mappingRef = doc(db, "sys_user_mapping", user.uid);
+                const mappingSnap = await getDoc(mappingRef);
+
+                if (!mappingSnap.exists()) {
+                    throw new Error("所属店舗情報が見つかりません。管理者に連絡してください。");
+                }
+
+                const userData = mappingSnap.data();
+                const tenantId = userData.tenantId;
+                const role = userData.role; // "admin", "inner", "cast" など
+
+                // 3. 次の画面で使うために、重要な情報をブラウザに一時保存
+                sessionStorage.setItem('hospos_tenantId', tenantId);
+                sessionStorage.setItem('hospos_role', role);
+                sessionStorage.setItem('hospos_uid', user.uid);
+
+                console.log("Login Success:", role, tenantId);
+                
+                // 4. 権限によって行き先を変える
+                if (role === 'admin' || role === 'inner') {
+                    window.location.href = "admin/dashboard.html";
+                } else if (role === 'cast') {
+                    window.location.href = "cast/home.html";
+                } else {
+                    throw new Error("不明な権限です。");
+                }
+
+            } catch (error) {
+                console.error(error);
+                let msg = "ログインに失敗しました。";
+                if(error.code === 'auth/invalid-credential') msg = "メールアドレスかパスワードが間違っています。";
+                else if(error.message) msg = error.message;
+                
+                errorMsg.textContent = msg;
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'ログイン';
+            }
+        });
+    </script>
+</body>
+</html>

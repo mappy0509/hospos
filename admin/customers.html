@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOSPOS - 顧客管理</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 共通レイアウト */
+        .dashboard-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
+        .main-content { flex: 1; padding: 30px; background-color: var(--bg-color); }
+        
+        .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
+        .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
+        .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
+
+        /* ヘッダー & 検索 */
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .search-bar { display: flex; gap: 10px; background: white; padding: 10px; border-radius: 8px; box-shadow: var(--shadow-sm); }
+        .search-input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 250px; }
+
+        /* 顧客リスト */
+        .customer-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;
+        }
+        .cust-card {
+            background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm);
+            border-top: 4px solid #6c757d; cursor: pointer; transition: 0.2s;
+        }
+        .cust-card:hover { transform: translateY(-3px); }
+        
+        .cust-name { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; }
+        .cust-meta { font-size: 0.85rem; color: #666; margin-bottom: 10px; }
+        .cust-cast { background: #e6f2ff; color: var(--primary-color); padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; display: inline-block; }
+
+        /* モーダル */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; max-width: 95%; box-shadow: var(--shadow-lg); }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
+        .input-box { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        .btn-save { width: 100%; padding: 12px; background: var(--primary-color); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+            <nav>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
+                <a href="slips.html" class="menu-item"><i class="fas fa-file-invoice-dollar"></i> 伝票一覧</a>
+                <a href="call-management.html" class="menu-item"><i class="fas fa-music"></i> コール管理</a>
+                <a href="shokai-control.html" class="menu-item"><i class="fas fa-users"></i> 初回・付け回し</a>
+                <a href="products.html" class="menu-item"><i class="fas fa-wine-bottle"></i> 商品管理</a>
+                <a href="inventory.html" class="menu-item"><i class="fas fa-boxes"></i> 在庫管理</a>
+                <a href="cast-list.html" class="menu-item"><i class="fas fa-user-tie"></i> キャスト管理</a>
+                <a href="attendance.html" class="menu-item"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="customers.html" class="menu-item active"><i class="fas fa-address-book"></i> 顧客管理</a>
+                <a href="sales-analysis.html" class="menu-item"><i class="fas fa-chart-line"></i> 売上分析</a>
+                <a href="ranking.html" class="menu-item"><i class="fas fa-trophy"></i> ランキング</a>
+                <a href="daily-report.html" class="menu-item"><i class="fas fa-file-alt"></i> 日報・ログ</a>
+                <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i> 店舗設定</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <div class="page-header">
+                <h2><i class="fas fa-address-book"></i> 顧客管理</h2>
+                <div class="search-bar">
+                    <input type="text" id="search-input" class="search-input" placeholder="お客様名または担当で検索...">
+                    <button class="btn-save" style="width:auto; padding:8px 15px;" onclick="openModal()">
+                        <i class="fas fa-user-plus"></i> 新規登録
+                    </button>
+                </div>
+            </div>
+
+            <div id="customer-list" class="customer-grid">
+                <div style="grid-column:1/-1; text-align:center; padding:30px;">読み込み中...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="cust-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title">顧客登録</h3>
+            <form id="cust-form">
+                <input type="hidden" id="cust-id">
+                
+                <div class="form-group">
+                    <label>お客様名</label>
+                    <input type="text" id="cust-name" class="input-box" required placeholder="例: 田中 みか">
+                </div>
+                <div class="form-group">
+                    <label>担当ホスト</label>
+                    <select id="cust-cast" class="input-box">
+                        <option value="">選択してください</option>
+                        </select>
+                </div>
+                
+                <div style="display:flex; gap:15px;">
+                    <div class="form-group" style="flex:1;">
+                        <label>年齢</label>
+                        <input type="number" id="cust-age" class="input-box" placeholder="20">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>職業</label>
+                        <input type="text" id="cust-job" class="input-box" placeholder="会社員">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>備考 (好きな酒、NGなど)</label>
+                    <textarea id="cust-notes" class="input-box" style="height:80px;"></textarea>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button type="submit" class="btn-save">保存する</button>
+                    <button type="button" class="btn-save" style="background:#6c757d;" onclick="closeModal()">閉じる</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from '../assets/js/firebase-config.js';
+        import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, where, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        if (!tenantId) window.location.href = "../index.html";
+
+        const listContainer = document.getElementById('customer-list');
+        const modal = document.getElementById('cust-modal');
+        const form = document.getElementById('cust-form');
+        const castSelect = document.getElementById('cust-cast');
+        const searchInput = document.getElementById('search-input');
+
+        let allCustomers = [];
+        let casts = {};
+
+        // 1. 初期化 (キャスト一覧取得 -> 顧客監視)
+        async function init() {
+            // キャスト一覧
+            const qCast = query(collection(db, "tenants", tenantId, "users"), where("role", "==", "cast"));
+            const snap = await getDocs(qCast);
+            
+            castSelect.innerHTML = '<option value="">担当なし (フリー)</option>';
+            snap.forEach(doc => {
+                casts[doc.id] = doc.data().name;
+                castSelect.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
+            });
+
+            startCustomerListener();
+        }
+
+        // 2. 顧客データ監視
+        function startCustomerListener() {
+            // 名前順で取得 (インデックスエラー回避のためorderBy外すか、必要な場合はindex作成)
+            // ここではorderByなしで全件取得しJSソート
+            const q = query(collection(db, "tenants", tenantId, "customers"));
+
+            onSnapshot(q, (snapshot) => {
+                allCustomers = [];
+                if(snapshot.empty) {
+                    listContainer.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:30px; color:#999;">顧客データがありません</div>`;
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    allCustomers.push({ id: doc.id, ...doc.data() });
+                });
+
+                renderCustomers();
+            });
+        }
+
+        // 3. 描画 & 検索フィルタ
+        function renderCustomers() {
+            const term = searchInput.value.toLowerCase();
+            
+            const filtered = allCustomers.filter(c => {
+                const name = (c.name || "").toLowerCase();
+                const castName = (casts[c.assignedCastId] || "").toLowerCase();
+                return name.includes(term) || castName.includes(term);
+            });
+
+            listContainer.innerHTML = "";
+            filtered.forEach(c => {
+                const castName = casts[c.assignedCastId] || "フリー";
+                const div = document.createElement('div');
+                div.className = "cust-card";
+                div.innerHTML = `
+                    <div class="cust-name">${c.name}</div>
+                    <div class="cust-meta">
+                        ${c.age ? c.age + "歳" : ""} ${c.job ? "/ " + c.job : ""}
+                    </div>
+                    <div class="cust-cast"><i class="fas fa-user-tie"></i> ${castName}</div>
+                    <div style="margin-top:10px; font-size:0.85rem; color:#555; white-space:pre-wrap;">${c.notes || "備考なし"}</div>
+                `;
+                div.onclick = () => editCustomer(c.id);
+                listContainer.appendChild(div);
+            });
+        }
+
+        searchInput.addEventListener('input', renderCustomers);
+
+        // 4. モーダル操作
+        window.openModal = () => {
+            form.reset();
+            document.getElementById('cust-id').value = "";
+            document.getElementById('modal-title').textContent = "顧客登録";
+            modal.style.display = 'flex';
+        };
+
+        window.editCustomer = (id) => {
+            const c = allCustomers.find(i => i.id === id);
+            if(!c) return;
+            document.getElementById('cust-id').value = c.id;
+            document.getElementById('cust-name').value = c.name;
+            document.getElementById('cust-cast').value = c.assignedCastId || "";
+            document.getElementById('cust-age').value = c.age || "";
+            document.getElementById('cust-job').value = c.job || "";
+            document.getElementById('cust-notes').value = c.notes || "";
+            
+            document.getElementById('modal-title').textContent = "顧客編集";
+            modal.style.display = 'flex';
+        };
+
+        window.closeModal = () => modal.style.display = 'none';
+
+        // 5. 保存
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('cust-id').value;
+            const data = {
+                name: document.getElementById('cust-name').value,
+                assignedCastId: document.getElementById('cust-cast').value,
+                age: document.getElementById('cust-age').value,
+                job: document.getElementById('cust-job').value,
+                notes: document.getElementById('cust-notes').value,
+                lastUpdated: serverTimestamp()
+            };
+
+            try {
+                if(id) {
+                    await updateDoc(doc(db, "tenants", tenantId, "customers", id), data);
+                } else {
+                    await addDoc(collection(db, "tenants", tenantId, "customers"), {
+                        ...data,
+                        createdAt: serverTimestamp()
+                    });
+                }
+                closeModal();
+            } catch(e) { alert("エラー: " + e.message); }
+        });
+
+        init();
+    </script>
+</body>
+</html>

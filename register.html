@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOSPOS - 店舗新規登録</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="login-body">
+
+    <div class="login-container">
+        <div class="login-header">
+            <h1>Owner Register</h1>
+            <p>新規店舗アカウント開設</p>
+        </div>
+
+        <form id="register-form">
+            <div class="form-group">
+                <label><i class="fas fa-store"></i> 店舗名</label>
+                <input type="text" id="store-name" placeholder="Club HOSPOS" required>
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-user"></i> オーナー氏名</label>
+                <input type="text" id="owner-name" placeholder="代表者名" required>
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-envelope"></i> メールアドレス</label>
+                <input type="email" id="email" placeholder="owner@example.com" required>
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-lock"></i> パスワード</label>
+                <input type="password" id="password" placeholder="8文字以上" required minlength="8">
+            </div>
+
+            <button type="submit" id="submit-btn" class="btn-primary">アカウント作成</button>
+        </form>
+
+        <div id="message-area" class="error-message" style="color: var(--text-main); margin-top:10px;"></div>
+        
+        <div class="login-footer">
+            <p>すでにアカウントをお持ちの方はこちら</p>
+            <a href="index.html">ログイン画面へ戻る</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, db } from './assets/js/firebase-config.js';
+        import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { collection, addDoc, setDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const form = document.getElementById('register-form');
+        const msgArea = document.getElementById('message-area');
+        const btn = document.getElementById('submit-btn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            msgArea.style.color = "#007bff"; // 青色（進行中）
+            msgArea.textContent = "処理中...しばらくお待ちください";
+            btn.disabled = true;
+
+            const storeName = document.getElementById('store-name').value;
+            const ownerName = document.getElementById('owner-name').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                // 1. Firebase Authでユーザー作成
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // 2. Firestoreに「店舗(tenant)」データを作成
+                // addDocを使うと、ランダムなID (tenantId) が自動生成されます
+                const tenantRef = await addDoc(collection(db, "tenants"), {
+                    name: storeName,
+                    createdAt: serverTimestamp(),
+                    config: {
+                        taxRate: 10,       // デフォルト消費税10%
+                        serviceRate: 30,   // デフォルトサービス料30%
+                        rounding: "up_10", // 10円単位切り上げ
+                        currency: "JPY"
+                    }
+                });
+                const tenantId = tenantRef.id;
+
+                // 3. 店舗の中に「ユーザー(user)」データを作成
+                await setDoc(doc(db, "tenants", tenantId, "users", user.uid), {
+                    name: ownerName,
+                    email: email,
+                    role: "admin", // ここ重要！管理者権限
+                    createdAt: serverTimestamp(),
+                    isActive: true
+                });
+
+                // 4. 【重要】ログイン時に「どの店舗のユーザーか」を高速検索するためのマッピングを作成
+                // これがないとログイン時に全店舗を探さないといけなくなる
+                await setDoc(doc(db, "sys_user_mapping", user.uid), {
+                    tenantId: tenantId,
+                    role: "admin"
+                });
+
+                msgArea.textContent = "登録完了！ダッシュボードへ移動します...";
+                
+                // 少し待ってから移動
+                setTimeout(() => {
+                    window.location.href = "admin/dashboard.html";
+                }, 1500);
+
+            } catch (error) {
+                console.error(error);
+                msgArea.style.color = "#dc3545"; // 赤色（エラー）
+                btn.disabled = false;
+
+                let errorText = "登録に失敗しました。";
+                if (error.code === 'auth/email-already-in-use') {
+                    errorText = "このメールアドレスは既に登録されています。";
+                } else if (error.code === 'auth/weak-password') {
+                    errorText = "パスワードが弱すぎます。";
+                }
+                msgArea.textContent = errorText;
+            }
+        });
+    </script>
+</body>
+</html>

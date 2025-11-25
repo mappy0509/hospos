@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>HOSPOS Cast - Home</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* スマホ・キャスト画面専用スタイル */
+        body {
+            background-color: #f8f9fa;
+            padding-bottom: 80px; /* ボトムナビの分だけ余白 */
+        }
+
+        /* ヘッダー */
+        .mobile-header {
+            background: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .cast-name { font-weight: bold; font-size: 1.1rem; }
+        .shop-name { font-size: 0.8rem; color: var(--text-sub); }
+
+        /* メインコンテンツ */
+        .mobile-container { padding: 20px; }
+
+        /* ステータスカード */
+        .status-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px 20px;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 20px;
+        }
+        .status-indicator {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+            position: relative;
+        }
+        /* ステータス色定義 */
+        .status-off { background: #e9ecef; color: #adb5bd; border: 4px solid #dee2e6; }
+        .status-working { background: #e6f2ff; color: #007bff; border: 4px solid #007bff; box-shadow: 0 0 20px rgba(0,123,255,0.3); }
+
+        /* NFCボタン */
+        .nfc-btn {
+            background: linear-gradient(135deg, #333, #000);
+            color: white;
+            width: 100%;
+            padding: 20px;
+            border-radius: 12px;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .nfc-btn:active { transform: scale(0.98); }
+
+        /* お知らせリスト */
+        .news-list {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: var(--shadow-sm);
+        }
+        .news-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9rem;
+        }
+        .news-item:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-header">
+        <div>
+            <div class="shop-name" id="shop-name-display">Loading...</div>
+            <div class="cast-name" id="cast-name-display">...</div>
+        </div>
+        <div>
+            <i class="fas fa-bell" style="color: var(--text-sub);"></i>
+        </div>
+    </div>
+
+    <div class="mobile-container">
+        <div class="status-card">
+            <div id="status-circle" class="status-indicator status-off">
+                退勤中
+            </div>
+            <p id="status-text" style="font-size: 0.9rem; color: var(--text-sub);">
+                出勤するにはNFCをタッチしてください
+            </p>
+        </div>
+
+        <button id="nfc-scan-btn" class="nfc-btn">
+            <i class="fas fa-wifi" style="transform: rotate(90deg);"></i> スマホをNFCにかざす
+        </button>
+
+        <div id="msg-area" style="text-align:center; margin-top:15px; font-size:0.9rem; min-height:1.5em;"></div>
+
+        <h3 style="font-size:1rem; margin-top:30px; margin-bottom:10px; color:var(--text-sub);">お知らせ</h3>
+        <div class="news-list">
+            <div class="news-item">今日（9/20）はイベント日です！</div>
+            <div class="news-item">締め作業の時間が変更になりました。</div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <a href="home.html" class="nav-item active">
+            <i class="fas fa-home"></i>ホーム
+        </a>
+        <a href="javascript:void(0)" class="nav-item locked" id="nav-order" onclick="checkStatus(event)">
+            <i class="fas fa-glass-martini-alt"></i>注文
+        </a>
+        <a href="my-customers.html" class="nav-item">
+            <i class="fas fa-address-book"></i>顧客
+        </a>
+        <a href="profile.html" class="nav-item">
+            <i class="fas fa-user"></i>マイページ
+        </a>
+    </div>
+
+    <script type="module">
+        import { db, auth } from '../assets/js/firebase-config.js';
+        import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        const storedUid = sessionStorage.getItem('hospos_uid');
+        
+        if (!tenantId || !storedUid) {
+            window.location.href = "../index.html";
+        }
+
+        const statusCircle = document.getElementById('status-circle');
+        const statusText = document.getElementById('status-text');
+        const nfcBtn = document.getElementById('nfc-scan-btn');
+        const msgArea = document.getElementById('msg-area');
+        const navOrder = document.getElementById('nav-order');
+
+        let currentUserData = null;
+
+        // 1. ロック時のクリック制御 (Global)
+        window.checkStatus = (e) => {
+            // クラスに locked がついている場合は移動させない
+            if (navOrder.classList.contains('locked')) {
+                // href="javascript:void(0)" なので遷移はしないが、念のため
+                alert("⚠️ 先に出勤処理を行ってください");
+            }
+        };
+
+        // 2. ユーザー情報の取得
+        async function loadUserData() {
+            try {
+                const userRef = doc(db, "tenants", tenantId, "users", storedUid);
+                const snap = await getDoc(userRef);
+                
+                if (snap.exists()) {
+                    currentUserData = snap.data();
+                    document.getElementById('cast-name-display').textContent = currentUserData.name;
+                    updateStatusDisplay(currentUserData.currentStatus);
+                }
+                
+                const shopSnap = await getDoc(doc(db, "tenants", tenantId));
+                if(shopSnap.exists()){
+                    document.getElementById('shop-name-display').textContent = shopSnap.data().name;
+                }
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        // 3. ステータス表示とロック解除のロジック
+        function updateStatusDisplay(status) {
+            statusCircle.className = "status-indicator"; // Reset
+            
+            if (status === 'working') {
+                // 出勤中: ロック解除
+                statusCircle.classList.add('status-working');
+                statusCircle.textContent = "出勤中";
+                statusText.textContent = "お疲れ様です！今日も頑張りましょう";
+                nfcBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> 退勤処理をする (NFCタッチ)';
+                nfcBtn.style.background = "linear-gradient(135deg, #666, #444)";
+                
+                // ボトムナビの更新
+                navOrder.classList.remove('locked');
+                navOrder.setAttribute('href', 'order.html'); 
+                navOrder.style.color = "#adb5bd"; // 通常色に戻す
+            } else {
+                // 退勤中: ロック
+                statusCircle.classList.add('status-off');
+                statusCircle.textContent = "退勤中";
+                statusText.textContent = "出勤処理を行ってください";
+                nfcBtn.innerHTML = '<i class="fas fa-wifi" style="transform: rotate(90deg);"></i> 出勤処理をする (NFCタッチ)';
+                nfcBtn.style.background = "linear-gradient(135deg, #333, #000)";
+                
+                // ボトムナビの更新
+                navOrder.classList.add('locked');
+                navOrder.setAttribute('href', 'javascript:void(0)');
+                navOrder.style.color = ""; // CSSの .locked ルールに任せるか、明示的に指定
+            }
+        }
+
+        // 4. 出退勤ボタン（擬似NFC）
+        nfcBtn.addEventListener('click', async () => {
+            if(!currentUserData) return;
+
+            nfcBtn.disabled = true;
+            msgArea.textContent = "読み取り中...";
+
+            // 連打防止 (1分)
+            const lastTouchKey = `last_nfc_touch_${storedUid}`;
+            const lastTouchTime = localStorage.getItem(lastTouchKey);
+            const now = Date.now();
+
+            if (lastTouchTime && (now - parseInt(lastTouchTime)) < 60000) {
+                msgArea.style.color = "red";
+                msgArea.textContent = "⚠️ エラー: 直近の操作から1分経っていません。";
+                nfcBtn.disabled = false;
+                return;
+            }
+            localStorage.setItem(lastTouchKey, now.toString());
+
+            try {
+                const userRef = doc(db, "tenants", tenantId, "users", storedUid);
+                const newStatus = currentUserData.currentStatus === 'working' ? 'off' : 'working';
+                const type = newStatus === 'working' ? 'in' : 'out';
+
+                await updateDoc(userRef, { currentStatus: newStatus });
+                await addDoc(collection(db, "tenants", tenantId, "attendance"), {
+                    userId: storedUid,
+                    userName: currentUserData.name,
+                    type: type,
+                    timestamp: serverTimestamp()
+                });
+
+                currentUserData.currentStatus = newStatus;
+                updateStatusDisplay(newStatus);
+
+                msgArea.style.color = "green";
+                msgArea.textContent = type === 'in' ? "出勤しました！" : "退勤しました。";
+
+            } catch (error) {
+                console.error(error);
+                msgArea.style.color = "red";
+                msgArea.textContent = "エラーが発生しました";
+            } finally {
+                nfcBtn.disabled = false;
+                setTimeout(() => { msgArea.textContent = ""; }, 3000);
+            }
+        });
+
+        loadUserData();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOSPOS - 日報作成</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 共通レイアウト */
+        .dashboard-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
+        .main-content { flex: 1; padding: 30px; background-color: var(--bg-color); }
+        
+        .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
+        .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
+        .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
+
+        /* 日報作成エリア */
+        .report-container {
+            background: white; padding: 30px; border-radius: 12px; box-shadow: var(--shadow-sm);
+            max-width: 800px; margin: 0 auto;
+        }
+
+        .control-bar {
+            display: flex; gap: 15px; align-items: flex-end; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px;
+        }
+        .date-group label { display: block; font-weight: bold; margin-bottom: 5px; }
+        .date-input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; }
+        
+        .btn-generate {
+            padding: 10px 25px; background: var(--primary-color); color: white; border: none; 
+            border-radius: 6px; cursor: pointer; font-weight: bold; height: 42px;
+        }
+        .btn-generate:hover { background: #0056b3; }
+
+        /* テキストエリア */
+        .report-preview {
+            width: 100%; height: 400px; padding: 15px;
+            border: 1px solid #ddd; border-radius: 8px;
+            font-family: "Hiragino Kaku Gothic ProN", "Meiryo", monospace;
+            font-size: 0.9rem; line-height: 1.6;
+            background-color: #f8f9fa; resize: vertical;
+        }
+
+        .action-area {
+            display: flex; justify-content: flex-end; gap: 15px; margin-top: 20px;
+        }
+        .btn-copy {
+            padding: 12px 30px; background: #28a745; color: white; border: none;
+            border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1rem;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .btn-copy:hover { background: #218838; }
+
+        /* ステータス表示 */
+        .status-msg { margin-top: 10px; color: #28a745; font-weight: bold; display: none; text-align: right;}
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+            <nav>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
+                <a href="slips.html" class="menu-item"><i class="fas fa-file-invoice-dollar"></i> 伝票一覧</a>
+                <a href="call-management.html" class="menu-item"><i class="fas fa-music"></i> コール管理</a>
+                <a href="shokai-control.html" class="menu-item"><i class="fas fa-users"></i> 初回・付け回し</a>
+                <a href="products.html" class="menu-item"><i class="fas fa-wine-bottle"></i> 商品管理</a>
+                <a href="inventory.html" class="menu-item"><i class="fas fa-boxes"></i> 在庫管理</a>
+                <a href="cast-list.html" class="menu-item"><i class="fas fa-user-tie"></i> キャスト管理</a>
+                <a href="attendance.html" class="menu-item"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="customers.html" class="menu-item"><i class="fas fa-address-book"></i> 顧客管理</a>
+                <a href="sales-analysis.html" class="menu-item"><i class="fas fa-chart-line"></i> 売上分析</a>
+                <a href="ranking.html" class="menu-item"><i class="fas fa-trophy"></i> ランキング</a>
+                <a href="daily-report.html" class="menu-item active"><i class="fas fa-file-alt"></i> 日報・ログ</a>
+                <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i> 店舗設定</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2 style="margin-bottom: 20px;"><i class="fas fa-file-alt"></i> 業務日報作成</h2>
+            
+            <div class="report-container">
+                <div class="control-bar">
+                    <div class="date-group">
+                        <label>対象日を選択</label>
+                        <input type="date" id="report-date" class="date-input">
+                    </div>
+                    <button id="generate-btn" class="btn-generate"><i class="fas fa-sync-alt"></i> 集計して作成</button>
+                </div>
+
+                <p style="font-size:0.9rem; color:#666; margin-bottom:10px;">
+                    以下のテキストエリアは自由に編集できます。内容を確認後、コピーしてLINE等に貼り付けてください。
+                </p>
+                
+                <textarea id="report-text" class="report-preview" spellcheck="false">（日付を選択して「集計」ボタンを押してください）</textarea>
+
+                <div class="status-msg" id="copy-msg">コピーしました！</div>
+
+                <div class="action-area">
+                    <button id="copy-btn" class="btn-copy">
+                        <i class="fas fa-copy"></i> テキストをコピーする
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from '../assets/js/firebase-config.js';
+        import { collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        if (!tenantId) window.location.href = "../index.html";
+
+        const dateInput = document.getElementById('report-date');
+        const generateBtn = document.getElementById('generate-btn');
+        const reportText = document.getElementById('report-text');
+        const copyBtn = document.getElementById('copy-btn');
+        const copyMsg = document.getElementById('copy-msg');
+
+        // デフォルトで今日の日付をセット
+        dateInput.valueAsDate = new Date();
+
+        // 1. 集計とテキスト生成
+        generateBtn.addEventListener('click', async () => {
+            generateBtn.disabled = true;
+            generateBtn.textContent = "集計中...";
+            reportText.value = "データを取得中...";
+
+            try {
+                // 日付範囲の計算
+                const targetDate = new Date(dateInput.value);
+                const startOfDay = new Date(targetDate);
+                startOfDay.setHours(0, 0, 0, 0);
+                const endOfDay = new Date(targetDate);
+                endOfDay.setHours(23, 59, 59, 999);
+
+                // 店舗情報の取得（店名など）
+                const shopSnap = await getDoc(doc(db, "tenants", tenantId));
+                const shopName = shopSnap.exists() ? shopSnap.data().name : "当店";
+
+                // キャスト情報の取得 (ID -> 名前変換用)
+                const castMap = {};
+                const castSnap = await getDocs(query(collection(db, "tenants", tenantId, "users"), where("role", "==", "cast")));
+                castSnap.forEach(d => { castMap[d.id] = d.data().name; });
+
+                // 伝票データの取得
+                // インデックス不要にするため、where("startTime")を使わず全件取得してJSフィルタ（件数増えたら要修正）
+                // ※直近の運用なら問題なし
+                const slipsSnap = await getDocs(collection(db, "tenants", tenantId, "slips"));
+                
+                let totalSales = 0;
+                let totalGroups = 0;
+                
+                let cashTotal = 0;
+                let cardTotal = 0;
+                let debtTotal = 0; // 売掛
+                let activeTotal = 0; // 未会計（営業中）
+
+                let castSales = {}; // ランキング用
+
+                slipsSnap.forEach(doc => {
+                    const data = doc.data();
+                    const sDate = data.startTime ? data.startTime.toDate() : null;
+
+                    // 没電以外、かつ対象日のデータ
+                    if (data.status !== 'void' && sDate && sDate >= startOfDay && sDate <= endOfDay) {
+                        const amount = data.totalAmount || 0;
+                        totalSales += amount;
+                        totalGroups += 1;
+
+                        // 内訳計算
+                        if (data.status === 'paid') {
+                            const details = data.paymentDetails || {};
+                            cashTotal += (details.cash || 0);
+                            cardTotal += (details.card || 0);
+                            debtTotal += (details.credit || 0);
+                        } else {
+                            activeTotal += amount;
+                        }
+
+                        // キャスト別集計
+                        const castId = data.primaryCastId;
+                        if (castId && castMap[castId]) {
+                            castSales[castId] = (castSales[castId] || 0) + amount;
+                        }
+                    }
+                });
+
+                // ランキング作成 (Top 3)
+                const sortedCasts = Object.keys(castSales)
+                    .map(id => ({ name: castMap[id], sales: castSales[id] }))
+                    .sort((a, b) => b.sales - a.sales)
+                    .slice(0, 3);
+
+                // 客単価
+                const avgSpend = totalGroups > 0 ? Math.floor(totalSales / totalGroups) : 0;
+
+                // --- テキスト生成 (Template Literal) ---
+                const dateStr = targetDate.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' });
+                
+                let text = `【${shopName} 日報】\n`;
+                text += `${dateStr}\n\n`;
+                
+                text += `■ 売上合計: ¥${totalSales.toLocaleString()}\n`;
+                text += `------------------\n`;
+                text += `・現金: ¥${cashTotal.toLocaleString()}\n`;
+                text += `・カード: ¥${cardTotal.toLocaleString()}\n`;
+                text += `・売掛: ¥${debtTotal.toLocaleString()}\n`;
+                if(activeTotal > 0) text += `・未会計(営業中): ¥${activeTotal.toLocaleString()}\n`;
+                text += `------------------\n`;
+                text += `■ 組数: ${totalGroups}組\n`;
+                text += `■ 客単価: ¥${avgSpend.toLocaleString()}\n\n`;
+
+                text += `【本日のRanking】\n`;
+                if(sortedCasts.length > 0) {
+                    sortedCasts.forEach((c, i) => {
+                        const medal = i===0 ? "🥇" : (i===1 ? "🥈" : "🥉");
+                        text += `${medal} ${c.name} (¥${c.sales.toLocaleString()})\n`;
+                    });
+                } else {
+                    text += `該当データなし\n`;
+                }
+
+                text += `\n【連絡事項】\n`;
+                text += `・\n・\n`; // 空欄にしておく
+                text += `\nお疲れ様でした。`;
+
+                reportText.value = text;
+
+            } catch (error) {
+                console.error(error);
+                reportText.value = "エラーが発生しました: " + error.message;
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = '<i class="fas fa-sync-alt"></i> 集計して作成';
+                generateBtn.innerHTML = '<i class="fas fa-sync-alt"></i> 集計して作成'; // アイコン復帰
+            }
+        });
+
+        // 2. コピー機能
+        copyBtn.addEventListener('click', () => {
+            reportText.select();
+            navigator.clipboard.writeText(reportText.value).then(() => {
+                copyMsg.style.display = 'block';
+                setTimeout(() => copyMsg.style.display = 'none', 2000);
+            });
+        });
+
+    </script>
+</body>
+</html>

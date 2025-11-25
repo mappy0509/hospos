@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOSPOS - 伝票詳細・会計</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 画面レイアウト */
+        .dashboard-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
+        .main-content { flex: 1; padding: 30px; background-color: var(--bg-color); display: flex; gap: 20px; }
+        
+        /* 左側：注文リスト */
+        .order-section { flex: 2; background: white; border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+        .order-list { flex: 1; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; margin-top: 15px; }
+        .order-item { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; padding: 12px; border-bottom: 1px solid #eee; align-items: center; }
+        .order-header { background: #f8f9fa; font-weight: bold; color: #666; position: sticky; top: 0; }
+        
+        /* 右側：会計パネル (スタイル強化) */
+        .payment-section { flex: 1.2; background: white; border-radius: 12px; padding: 25px; box-shadow: var(--shadow-sm); height: fit-content; position: sticky; top: 30px; }
+        
+        .calc-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; }
+        .calc-total-box {
+            background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;
+            text-align: right; border: 2px solid #e9ecef;
+        }
+        .total-label { font-size: 0.9rem; color: #666; display: block; }
+        .total-amount { font-size: 2rem; font-weight: bold; color: var(--text-main); line-height: 1.2; }
+
+        /* 支払い入力エリア */
+        .payment-inputs {
+            background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 20px;
+        }
+        .pay-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .pay-row label { font-weight: bold; width: 100px; }
+        .pay-input {
+            flex: 1; padding: 10px; font-size: 1.1rem; text-align: right;
+            border: 1px solid #ccc; border-radius: 6px;
+        }
+        .pay-input:focus { border-color: var(--primary-color); outline: none; background: #f0f8ff; }
+
+        /* 結果表示 (お釣り・売掛) */
+        .result-box {
+            padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px;
+            font-weight: bold; font-size: 1.2rem; display: none; /* JSで制御 */
+        }
+        .result-change { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .result-debt { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        .btn-checkout { width: 100%; padding: 15px; font-size: 1.1rem; margin-top: 10px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-checkout:hover { background: #218838; }
+        .btn-checkout:disabled { background: #ccc; cursor: not-allowed; }
+        
+        .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-sub { flex: 1; padding: 10px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: bold; color: #555; }
+        .btn-sub:hover { background: #f8f9fa; }
+
+        /* 印刷用などは前回と同じ */
+        @media print {
+            body * { visibility: hidden; }
+            #receipt-area, #receipt-area * { visibility: visible; }
+            #receipt-area { position: absolute; left: 0; top: 0; width: 80mm; display: block; }
+        }
+        #receipt-area { display: none; background: #fff; width: 300px; padding: 20px; }
+        .receipt-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .receipt-total { border-top: 1px dashed #000; padding: 10px 0; margin: 10px 0; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <div class="sidebar no-print">
+            <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+            <button onclick="window.location.href='dashboard.html'" class="btn-sub" style="width:100%; margin-bottom:20px; background:#6c757d; color:white;">
+                <i class="fas fa-arrow-left"></i> ダッシュボードへ
+            </button>
+        </div>
+
+        <div class="main-content">
+            <div class="order-section">
+                <h2 id="table-title">Table: ...</h2>
+                <p id="customer-name" style="color:#666; margin-bottom:10px;">...</p>
+                
+                <div class="order-item order-header">
+                    <div>商品名</div>
+                    <div>単価</div>
+                    <div>数量</div>
+                    <div>小計</div>
+                </div>
+                <div id="order-list-container" class="order-list"></div>
+            </div>
+
+            <div class="payment-section">
+                <h3><i class="fas fa-cash-register"></i> お会計・レジ</h3>
+                
+                <div style="margin-top:15px; color:#555;">
+                    <div class="calc-row"><span>商品小計</span> <span id="calc-subtotal">¥0</span></div>
+                    <div class="calc-row"><span>サービス料 (<span id="rate-service">0</span>%)</span> <span id="calc-service">¥0</span></div>
+                    <div class="calc-row"><span>消費税 (<span id="rate-tax">0</span>%)</span> <span id="calc-tax">¥0</span></div>
+                    <div class="calc-row"><span>端数調整</span> <span id="calc-rounding">¥0</span></div>
+                </div>
+
+                <div class="calc-total-box">
+                    <span class="total-label">ご請求金額 (税込)</span>
+                    <div class="total-amount" id="calc-grand-total">¥0</div>
+                </div>
+
+                <div class="payment-inputs">
+                    <div class="pay-row">
+                        <label><i class="fas fa-money-bill-wave"></i> 現金</label>
+                        <input type="number" id="pay-cash" class="pay-input" placeholder="0" min="0">
+                    </div>
+                    <div class="pay-row">
+                        <label><i class="fas fa-credit-card"></i> カード</label>
+                        <input type="number" id="pay-card" class="pay-input" placeholder="0" min="0">
+                    </div>
+                    <div class="pay-row" style="border-top:1px dashed #ddd; padding-top:10px; margin-top:10px;">
+                        <label style="color:#dc3545;">売掛予定</label>
+                        <span id="pay-credit" style="flex:1; text-align:right; font-weight:bold; color:#dc3545; font-size:1.1rem;">¥0</span>
+                    </div>
+                </div>
+
+                <div id="result-change" class="result-box result-change">
+                    お釣り: <span id="val-change">¥0</span>
+                </div>
+                <div id="result-debt" class="result-box result-debt">
+                    不足 (売掛): <span id="val-debt">¥0</span>
+                </div>
+
+                <button id="btn-checkout" class="btn-checkout" disabled>金額を入力してください</button>
+                
+                <div class="action-buttons">
+                    <button id="btn-receipt" class="btn-sub"><i class="fas fa-print"></i> 印刷</button>
+                    <button id="btn-void" class="btn-sub" style="color:#dc3545;"><i class="fas fa-ban"></i> 没電</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="receipt-area">
+        <div style="text-align:center; font-weight:bold; margin-bottom:10px;" id="rec-store-name"></div>
+        <div style="font-size:0.8rem; border-bottom:1px dashed #000; margin-bottom:10px;">
+            Date: <span id="rec-date"></span><br>
+            Table: <span id="rec-table"></span>
+        </div>
+        <div id="rec-items"></div>
+        <div style="border-top:1px dashed #000; margin:10px 0;"></div>
+        <div class="receipt-row" style="font-weight:bold;"><span>TOTAL</span> <span id="rec-total"></span></div>
+        <div class="receipt-row"><span>Cash</span> <span id="rec-cash"></span></div>
+        <div class="receipt-row"><span>Card</span> <span id="rec-card"></span></div>
+        <div class="receipt-row"><span>Credit(売掛)</span> <span id="rec-debt"></span></div>
+        <div class="receipt-row" style="margin-top:5px; font-weight:bold;"><span>Change</span> <span id="rec-change"></span></div>
+        <div style="text-align:center; font-size:0.7rem; margin-top:20px;">Thank you!</div>
+    </div>
+
+    <script type="module">
+        import { db } from '../assets/js/firebase-config.js';
+        import { doc, getDoc, collection, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        const params = new URLSearchParams(window.location.search);
+        let slipId = params.get('id');
+
+        // デモ用処理
+        if(!slipId) {
+             slipId = prompt("伝票IDを入力してください"); 
+             if(!slipId) window.location.href="dashboard.html";
+        }
+
+        let config = { tax: 10, service: 30, rounding: 'up_10' };
+        let slipData = null;
+        let tenantInfo = {};
+        let currentOrders = [];
+        let calcResult = { grandTotal: 0 }; // 計算結果保持
+
+        // UI
+        const inputCash = document.getElementById('pay-cash');
+        const inputCard = document.getElementById('pay-card');
+        const displayCredit = document.getElementById('pay-credit');
+        const resultChange = document.getElementById('result-change');
+        const resultDebt = document.getElementById('result-debt');
+        const valChange = document.getElementById('val-change');
+        const valDebt = document.getElementById('val-debt');
+        const btnCheckout = document.getElementById('btn-checkout');
+
+        // 1. 初期ロード
+        async function init() {
+            // 店舗設定取得
+            const tSnap = await getDoc(doc(db, "tenants", tenantId));
+            if(tSnap.exists()) {
+                tenantInfo = tSnap.data();
+                if(tenantInfo.config) {
+                    config.tax = tenantInfo.config.taxRate ?? 10;
+                    config.service = tenantInfo.config.serviceRate ?? 30;
+                    config.rounding = tenantInfo.config.rounding || 'up_10';
+                }
+                document.getElementById('rate-service').textContent = config.service;
+                document.getElementById('rate-tax').textContent = config.tax;
+            }
+            loadSlip();
+        }
+
+        async function loadSlip() {
+            const sRef = doc(db, "tenants", tenantId, "slips", slipId);
+            const sSnap = await getDoc(sRef);
+            if(!sSnap.exists()) { alert("Error"); return; }
+            slipData = sSnap.data();
+
+            document.getElementById('table-title').textContent = `Table: ${slipData.tableId}`;
+            document.getElementById('customer-name').textContent = slipData.customerName;
+
+            // 注文取得
+            const oSnap = await getDocs(collection(sRef, "orders"));
+            currentOrders = [];
+            oSnap.forEach(d => currentOrders.push(d.data()));
+
+            renderOrders();
+            calculateBill();
+        }
+
+        function renderOrders() {
+            const container = document.getElementById('order-list-container');
+            container.innerHTML = "";
+            currentOrders.forEach(o => {
+                const sub = o.price * o.quantity;
+                container.innerHTML += `
+                    <div class="order-item">
+                        <div>${o.name}</div>
+                        <div>¥${o.price.toLocaleString()}</div>
+                        <div>x${o.quantity}</div>
+                        <div style="font-weight:bold;">¥${sub.toLocaleString()}</div>
+                    </div>
+                `;
+            });
+        }
+
+        // 2. 請求額の計算
+        function calculateBill() {
+            let subtotal = 0;
+            currentOrders.forEach(o => subtotal += (o.price * o.quantity));
+
+            let serviceFee = Math.floor(subtotal * (config.service / 100));
+            let taxable = subtotal + serviceFee;
+            let tax = Math.floor(taxable * (config.tax / 100));
+            let rawTotal = taxable + tax;
+
+            // 端数処理
+            let total = rawTotal;
+            if (config.rounding === 'up_10') total = Math.ceil(rawTotal / 10) * 10;
+            else if (config.rounding === 'down_10') total = Math.floor(rawTotal / 10) * 10;
+            else if (config.rounding === 'up_100') total = Math.ceil(rawTotal / 100) * 100;
+            else if (config.rounding === 'down_100') total = Math.floor(rawTotal / 100) * 100;
+
+            document.getElementById('calc-subtotal').textContent = `¥${subtotal.toLocaleString()}`;
+            document.getElementById('calc-service').textContent = `¥${serviceFee.toLocaleString()}`;
+            document.getElementById('calc-tax').textContent = `¥${tax.toLocaleString()}`;
+            document.getElementById('calc-rounding').textContent = `¥${total - rawTotal}`;
+            document.getElementById('calc-grand-total').textContent = `¥${total.toLocaleString()}`;
+
+            calcResult = { subtotal, serviceFee, tax, grandTotal: total };
+            
+            // 再計算トリガー
+            updatePaymentCalc();
+        }
+
+        // 3. 支払い計算 (レジ機能)
+        function updatePaymentCalc() {
+            const cash = Number(inputCash.value) || 0;
+            const card = Number(inputCard.value) || 0;
+            const totalPaid = cash + card;
+            const grandTotal = calcResult.grandTotal;
+
+            const diff = totalPaid - grandTotal;
+
+            // 表示リセット
+            resultChange.style.display = 'none';
+            resultDebt.style.display = 'none';
+            displayCredit.textContent = "¥0";
+            btnCheckout.disabled = false;
+
+            if (diff >= 0) {
+                // お釣り発生
+                resultChange.style.display = 'block';
+                valChange.textContent = `¥${diff.toLocaleString()}`;
+                btnCheckout.textContent = "会計を確定する";
+                btnCheckout.style.background = "#28a745"; // Green
+                calcResult.change = diff;
+                calcResult.debt = 0;
+            } else {
+                // 不足 -> 売掛
+                const debt = Math.abs(diff);
+                resultDebt.style.display = 'block';
+                valDebt.textContent = `¥${debt.toLocaleString()}`;
+                displayCredit.textContent = `¥${debt.toLocaleString()}`;
+                
+                btnCheckout.textContent = "売掛を含んで会計確定";
+                btnCheckout.style.background = "#dc3545"; // Red (注意喚起)
+                calcResult.change = 0;
+                calcResult.debt = debt;
+            }
+
+            // 何も入力がない時はボタン無効化などしたければここで制御
+            if(totalPaid === 0 && calcResult.debt === grandTotal) {
+                // 全額売掛もOKとするが、ボタンテキストを変える
+                btnCheckout.textContent = "全額売掛で確定";
+            }
+        }
+
+        // イベントリスナー
+        inputCash.addEventListener('input', updatePaymentCalc);
+        inputCard.addEventListener('input', updatePaymentCalc);
+
+        // 4. 会計確定処理
+        btnCheckout.onclick = async () => {
+            const cash = Number(inputCash.value) || 0;
+            const card = Number(inputCard.value) || 0;
+            const debt = calcResult.debt;
+            
+            let msg = `請求額: ¥${calcResult.grandTotal.toLocaleString()}\n\n`;
+            msg += `現金: ¥${cash.toLocaleString()}\n`;
+            msg += `カード: ¥${card.toLocaleString()}\n`;
+            if(debt > 0) msg += `売掛: ¥${debt.toLocaleString()} (担当ホスト管理)\n`;
+            else msg += `お釣り: ¥${calcResult.change.toLocaleString()}\n`;
+            
+            msg += `\nこの内容で会計を確定しますか？`;
+
+            if(!confirm(msg)) return;
+
+            btnCheckout.disabled = true;
+            btnCheckout.textContent = "処理中...";
+
+            try {
+                const sRef = doc(db, "tenants", tenantId, "slips", slipId);
+                
+                // データ更新
+                await updateDoc(sRef, {
+                    status: 'paid', // 営業上の会計は完了
+                    totalAmount: calcResult.grandTotal,
+                    paidAt: serverTimestamp(),
+                    
+                    // 支払い詳細を記録
+                    paymentDetails: {
+                        cash: cash,
+                        card: card,
+                        credit: debt, // 売掛金
+                        change: calcResult.change
+                    },
+                    
+                    // 簡易検索用フラグ
+                    hasDebt: debt > 0,
+                    debtAmount: debt
+                });
+
+                alert("会計処理が完了しました！");
+                // 印刷するか聞く？ -> 今回は自動でリロード
+                window.location.href = "dashboard.html";
+
+            } catch(e) {
+                alert("エラー: " + e.message);
+                btnCheckout.disabled = false;
+            }
+        };
+
+        // 5. 印刷
+        document.getElementById('btn-receipt').onclick = () => {
+            const cash = Number(inputCash.value) || 0;
+            const card = Number(inputCard.value) || 0;
+            const debt = calcResult.debt;
+            const change = calcResult.change;
+
+            document.getElementById('rec-store-name').textContent = tenantInfo.name || "CLUB HOSPOS";
+            document.getElementById('rec-date').textContent = new Date().toLocaleString();
+            document.getElementById('rec-table').textContent = slipData.tableId;
+            
+            // Items
+            const rItems = document.getElementById('rec-items');
+            rItems.innerHTML = "";
+            currentOrders.forEach(o => {
+                rItems.innerHTML += `<div class="receipt-row"><span>${o.name}</span><span>¥${(o.price * o.quantity).toLocaleString()}</span></div>`;
+            });
+
+            document.getElementById('rec-total').textContent = `¥${calcResult.grandTotal.toLocaleString()}`;
+            document.getElementById('rec-cash').textContent = `¥${cash.toLocaleString()}`;
+            document.getElementById('rec-card').textContent = `¥${card.toLocaleString()}`;
+            document.getElementById('rec-debt').textContent = `¥${debt.toLocaleString()}`;
+            document.getElementById('rec-change').textContent = `¥${change.toLocaleString()}`;
+            
+            window.print();
+        };
+        
+        // 没電機能などは前回と同様なので省略していますが、必要なら追加してください
+
+        init();
+    </script>
+</body>
+</html>

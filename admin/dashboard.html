@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOSPOS - Dashboard</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 共通レイアウト */
+        .dashboard-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
+        .main-content { flex: 1; padding: 30px; background-color: var(--bg-color); }
+        
+        .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
+        .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
+        .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
+        .logout-btn { margin-top: auto; color: var(--error-color); }
+
+        /* 統計カードエリア */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
+        .stat-card::after { content: ""; position: absolute; right: -10px; bottom: -10px; font-size: 5rem; opacity: 0.05; font-family: "Font Awesome 6 Free"; font-weight: 900; }
+        .card-sales::after { content: "\f155"; }
+        .card-guests::after { content: "\f0c0"; }
+        .stat-title { color: var(--text-sub); font-size: 0.9rem; font-weight: bold; }
+        .stat-value { font-size: 2rem; font-weight: bold; margin-top: 5px; color: var(--text-main); }
+        .stat-sub { font-size: 0.8rem; color: #28a745; margin-top: 5px; }
+
+        /* テーブル状況グリッド */
+        .tables-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .tables-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+
+        .dash-table-card {
+            background: white; border-radius: 12px; padding: 15px;
+            box-shadow: var(--shadow-sm); border-top: 4px solid #ccc;
+            transition: transform 0.2s; cursor: pointer; position: relative;
+        }
+        .dash-table-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+        .status-active { border-top-color: #dc3545; background: #fff5f5; }
+
+        .dt-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; font-size: 1.1rem; padding-right: 20px; }
+        .dt-customer { font-size: 0.9rem; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .dt-amount { font-size: 1.2rem; font-weight: bold; color: var(--text-main); margin-bottom: 5px; }
+        .dt-timer { background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; color: #666; display: inline-block; }
+        .dt-timer i { margin-right: 5px; }
+
+        /* カード内メニューボタン */
+        .card-menu-btn {
+            position: absolute; top: 10px; right: 10px;
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: #999; cursor: pointer; transition: 0.2s;
+            z-index: 5;
+        }
+        .card-menu-btn:hover { background-color: rgba(0,0,0,0.1); color: #333; }
+
+        /* モーダル & コンテキストメニュー */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 400px; box-shadow: var(--shadow-lg); }
+        .modal-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; }
+        
+        /* input-box を select に対応させるため height 指定などを調整 */
+        .input-box { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 20px; font-size: 1rem; background-color: #fff; }
+
+        #context-menu {
+            display: none; position: absolute; z-index: 2000;
+            background: white; border: 1px solid #ddd; border-radius: 6px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+            width: 150px;
+        }
+        .ctx-item { padding: 12px 15px; cursor: pointer; font-size: 0.9rem; border-bottom: 1px solid #f0f0f0; }
+        .ctx-item:last-child { border-bottom: none; }
+        .ctx-item:hover { background: #f8f9fa; color: var(--primary-color); }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+            <nav>
+                <a href="dashboard.html" class="menu-item active"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
+                <a href="slips.html" class="menu-item"><i class="fas fa-file-invoice-dollar"></i> 伝票一覧</a>
+                <a href="call-management.html" class="menu-item"><i class="fas fa-music"></i> コール管理</a>
+                <a href="shokai-control.html" class="menu-item"><i class="fas fa-users"></i> 初回・付け回し</a>
+                <a href="products.html" class="menu-item"><i class="fas fa-wine-bottle"></i> 商品管理</a>
+                <a href="inventory.html" class="menu-item"><i class="fas fa-boxes"></i> 在庫管理</a>
+                <a href="cast-list.html" class="menu-item"><i class="fas fa-user-tie"></i> キャスト管理</a>
+                <a href="attendance.html" class="menu-item"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="customers.html" class="menu-item"><i class="fas fa-address-book"></i> 顧客管理</a>
+                <a href="sales-analysis.html" class="menu-item"><i class="fas fa-chart-line"></i> 売上分析</a>
+                <a href="ranking.html" class="menu-item"><i class="fas fa-trophy"></i> ランキング</a>
+                <a href="daily-report.html" class="menu-item"><i class="fas fa-file-alt"></i> 日報・ログ</a>
+                <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i> 店舗設定</a>
+            </nav>
+            <a href="#" id="logout-btn" class="menu-item logout-btn"><i class="fas fa-sign-out-alt"></i> ログアウト</a>
+        </div>
+
+        <div class="main-content">
+            <div class="stats-grid">
+                <div class="stat-card card-sales">
+                    <div class="stat-title">本日の総売上</div>
+                    <div class="stat-value" id="daily-sales">¥0</div>
+                    <div class="stat-sub" id="active-sales-sub">(未会計: ¥0)</div>
+                </div>
+                <div class="stat-card card-guests">
+                    <div class="stat-title">現在の組数</div>
+                    <div class="stat-value"><span id="active-count">0</span> <span style="font-size:1rem;">組</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">出勤キャスト</div>
+                    <div class="stat-value"><span id="cast-count">0</span> <span style="font-size:1rem;">名</span></div>
+                </div>
+            </div>
+
+            <div class="tables-section-header">
+                <h3><i class="fas fa-couch"></i> リアルタイム稼働状況</h3>
+                <div style="font-size:0.8rem; color:#666;">
+                    ※右上の <i class="fas fa-ellipsis-v"></i> ボタンでメニュー操作
+                </div>
+            </div>
+
+            <div id="active-tables-grid" class="tables-grid">
+                <div style="grid-column:1/-1; text-align:center; padding:30px; color:#aaa;">読み込み中...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="move-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-title">テーブル移動 (卓替え)</div>
+            <p style="margin-bottom:10px;">現在のテーブル: <span id="move-from-name" style="font-weight:bold;"></span></p>
+            
+            <label style="font-size:0.9rem; color:#666; display:block; margin-bottom:5px;">移動先のテーブルを選択</label>
+            <select id="move-to-name" class="input-box">
+                </select>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button id="cancel-move" class="btn-primary" style="background:#ccc; width:auto;">キャンセル</button>
+                <button id="confirm-move" class="btn-primary" style="width:auto;">移動する</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="context-menu">
+        <div class="ctx-item" id="ctx-move"><i class="fas fa-exchange-alt"></i> 卓移動する</div>
+        <div class="ctx-item" id="ctx-detail"><i class="fas fa-file-invoice"></i> 伝票詳細へ</div>
+    </div>
+
+    <script type="module">
+        import { db, auth } from '../assets/js/firebase-config.js';
+        import { signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { collection, query, where, onSnapshot, doc, updateDoc, Timestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        if (!tenantId) window.location.href = "../index.html";
+
+        const salesDisplay = document.getElementById('daily-sales');
+        const activeSalesSub = document.getElementById('active-sales-sub');
+        const activeCountDisplay = document.getElementById('active-count');
+        const castCountDisplay = document.getElementById('cast-count');
+        const tablesGrid = document.getElementById('active-tables-grid');
+        
+        const moveModal = document.getElementById('move-modal');
+        const moveToSelect = document.getElementById('move-to-name');
+        const ctxMenu = document.getElementById('context-menu');
+        let selectedSlipId = null;
+        let selectedTableId = null;
+
+        const MASTER_TABLES = [
+            "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10",
+            "VIP1", "VIP2", "ROYAL"
+        ];
+
+        function startDashboardListener() {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const q = query(collection(db, "tenants", tenantId, "slips")); 
+
+            onSnapshot(q, (snapshot) => {
+                let totalSales = 0;
+                let activeSales = 0;
+                let activeCount = 0;
+                const activeSlips = [];
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const slipDate = data.startTime ? data.startTime.toDate() : new Date();
+                    const isToday = slipDate >= today;
+
+                    if (data.status === 'paid' && isToday) {
+                        totalSales += (data.totalAmount || 0);
+                    } else if (data.status === 'active') {
+                        activeSales += (data.totalAmount || 0);
+                        totalSales += (data.totalAmount || 0);
+                        activeCount++;
+                        activeSlips.push({ id: doc.id, ...data });
+                    }
+                });
+
+                salesDisplay.textContent = `¥${totalSales.toLocaleString()}`;
+                activeSalesSub.textContent = `(うち未会計: ¥${activeSales.toLocaleString()})`;
+                activeCountDisplay.textContent = activeCount;
+
+                renderActiveTables(activeSlips);
+            });
+
+            const castQ = query(collection(db, "tenants", tenantId, "users"), where("role", "==", "cast"), where("currentStatus", "==", "working"));
+            onSnapshot(castQ, (snap) => {
+                castCountDisplay.textContent = snap.size;
+            });
+        }
+
+        function renderActiveTables(slips) {
+            tablesGrid.innerHTML = "";
+            if(slips.length === 0) {
+                tablesGrid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:30px; color:#aaa;">現在稼働中のテーブルはありません</div>`;
+                return;
+            }
+
+            slips.sort((a,b) => a.tableId.localeCompare(b.tableId));
+
+            slips.forEach(slip => {
+                const div = document.createElement('div');
+                div.className = "dash-table-card status-active";
+                div.dataset.startTime = slip.startTime ? slip.startTime.toDate().getTime() : Date.now();
+
+                div.innerHTML = `
+                    <div class="card-menu-btn" onclick="openMenu(event, '${slip.id}', '${slip.tableId}')">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </div>
+                    <div class="dt-header">
+                        <span>${slip.tableId}</span>
+                        <span style="font-size:0.8rem; font-weight:normal;">${slip.visitType === 'shime' ? '指名' : 'Free'}</span>
+                    </div>
+                    <div class="dt-customer">${slip.customerName} 様</div>
+                    <div class="dt-amount">¥${(slip.totalAmount || 0).toLocaleString()}</div>
+                    <div class="dt-timer"><i class="fas fa-clock"></i> <span class="timer-text">00:00</span></div>
+                `;
+                tablesGrid.appendChild(div);
+            });
+            updateTimers();
+        }
+
+        function updateTimers() {
+            const cards = document.querySelectorAll('.dash-table-card');
+            const now = Date.now();
+            cards.forEach(card => {
+                const start = parseInt(card.dataset.startTime);
+                const diff = now - start;
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const textSpan = card.querySelector('.timer-text');
+                textSpan.textContent = `${hours}h ${minutes}m`;
+                if(hours >= 2) textSpan.style.color = "#dc3545";
+            });
+        }
+        setInterval(updateTimers, 60000);
+
+        window.openMenu = (e, slipId, tableId) => {
+            e.stopPropagation();
+            selectedSlipId = slipId;
+            selectedTableId = tableId;
+            ctxMenu.style.top = `${e.pageY + 10}px`;
+            ctxMenu.style.left = `${e.pageX - 100}px`;
+            ctxMenu.style.display = 'block';
+        };
+
+        window.addEventListener('click', () => ctxMenu.style.display = 'none');
+
+        document.getElementById('ctx-move').onclick = () => {
+            document.getElementById('move-from-name').textContent = selectedTableId;
+            moveToSelect.innerHTML = "";
+            MASTER_TABLES.forEach(tbl => {
+                if (tbl !== selectedTableId) {
+                    const opt = document.createElement('option');
+                    opt.value = tbl;
+                    opt.textContent = tbl;
+                    moveToSelect.appendChild(opt);
+                }
+            });
+            moveModal.style.display = 'flex';
+        };
+
+        document.getElementById('confirm-move').onclick = async () => {
+            const newTable = moveToSelect.value;
+            if(!newTable) return;
+            try {
+                await updateDoc(doc(db, "tenants", tenantId, "slips", selectedSlipId), { tableId: newTable });
+                moveModal.style.display = 'none';
+            } catch(e) { alert("移動エラー: " + e.message); }
+        };
+
+        document.getElementById('cancel-move').onclick = () => moveModal.style.display = 'none';
+
+        // ★ここを追加しました
+        document.getElementById('ctx-detail').onclick = () => {
+            if(selectedSlipId) {
+                window.location.href = `slip-detail.html?id=${selectedSlipId}`;
+            }
+        };
+
+        document.getElementById('logout-btn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            await signOut(auth);
+            sessionStorage.clear();
+            window.location.href = "../index.html";
+        });
+
+        startDashboardListener();
+    </script>
+</body>
+</html>

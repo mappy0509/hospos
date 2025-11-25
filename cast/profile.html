@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>My Profile</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f8f9fa; padding-bottom: 80px; }
+        
+        .profile-header {
+            background: white; padding: 30px 20px; text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+        .avatar-circle {
+            width: 80px; height: 80px; background: #e6f2ff; color: var(--primary-color);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 2.5rem; margin: 0 auto 15px;
+        }
+        .profile-name { font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; }
+        .profile-email { color: #666; font-size: 0.9rem; }
+
+        .stats-row { display: flex; margin: 20px; gap: 15px; }
+        .stat-card { flex: 1; background: white; padding: 15px; border-radius: 12px; text-align: center; box-shadow: var(--shadow-sm); }
+        .stat-label { font-size: 0.8rem; color: #666; }
+        .stat-val { font-size: 1.2rem; font-weight: bold; color: var(--text-main); margin-top: 5px; }
+
+        .menu-list { background: white; margin-top: 20px; }
+        .menu-item-row { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+        .menu-item-row:active { background: #f0f0f0; }
+        .menu-label { display: flex; align-items: center; gap: 15px; font-weight: bold; }
+        .menu-icon { width: 24px; text-align: center; color: var(--primary-color); }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 400px; }
+        .input-box { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="profile-header">
+        <div class="avatar-circle"><i class="fas fa-user"></i></div>
+        <div class="profile-name" id="disp-name">...</div>
+        <div class="profile-email" id="disp-email">...</div>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-label">本日の売上 (指名のみ)</div>
+            <div class="stat-val" id="my-sales-today">¥0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">本日の指名</div>
+            <div class="stat-val" id="my-count-today">0本</div>
+        </div>
+    </div>
+
+    <div class="menu-list">
+        <div class="menu-item-row" onclick="openNameModal()">
+            <div class="menu-label"><i class="fas fa-signature menu-icon"></i> 表示名の変更</div>
+            <i class="fas fa-chevron-right" style="color:#ccc;"></i>
+        </div>
+        <div class="menu-item-row" onclick="openPassModal()">
+            <div class="menu-label"><i class="fas fa-lock menu-icon"></i> パスワードの変更</div>
+            <i class="fas fa-chevron-right" style="color:#ccc;"></i>
+        </div>
+        <div class="menu-item-row" id="logout-btn" style="color: #dc3545;">
+            <div class="menu-label"><i class="fas fa-sign-out-alt menu-icon" style="color:#dc3545;"></i> ログアウト</div>
+        </div>
+    </div>
+
+    <div id="name-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>表示名の変更</h3>
+            <input type="text" id="new-name" class="input-box" placeholder="新しい名前">
+            <div style="display:flex; gap:10px;">
+                <button onclick="document.getElementById('name-modal').style.display='none'" class="btn-primary" style="background:#ccc;">キャンセル</button>
+                <button onclick="updateName()" class="btn-primary">更新</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pass-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>パスワード変更</h3>
+            <p style="font-size:0.8rem; color:#666; margin-bottom:10px;">新しいパスワードを入力してください。</p>
+            <input type="password" id="new-pass" class="input-box" placeholder="新しいパスワード (6文字以上)">
+            <div style="display:flex; gap:10px;">
+                <button onclick="document.getElementById('pass-modal').style.display='none'" class="btn-primary" style="background:#ccc;">キャンセル</button>
+                <button onclick="updatePass()" class="btn-primary">更新</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <a href="home.html" class="nav-item">
+            <i class="fas fa-home"></i>ホーム
+        </a>
+        <a href="javascript:void(0)" class="nav-item locked" id="nav-order" onclick="checkStatus(event)">
+            <i class="fas fa-glass-martini-alt"></i>注文
+        </a>
+        <a href="my-customers.html" class="nav-item">
+            <i class="fas fa-address-book"></i>顧客
+        </a>
+        <a href="profile.html" class="nav-item active">
+            <i class="fas fa-user"></i>マイページ
+        </a>
+    </div>
+
+    <script type="module">
+        import { db, auth } from '../assets/js/firebase-config.js';
+        import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { signOut, updatePassword } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        const myUid = sessionStorage.getItem('hospos_uid');
+        if (!tenantId) window.location.href = "../index.html";
+
+        // ロック時のクリック処理
+        window.checkStatus = (e) => {
+            if (document.getElementById('nav-order').classList.contains('locked')) {
+                alert("⚠️ 先に出勤処理を行ってください");
+            }
+        };
+
+        async function init() {
+            const userRef = doc(db, "tenants", tenantId, "users", myUid);
+            const snap = await getDoc(userRef);
+            
+            if(snap.exists()) {
+                const data = snap.data();
+                document.getElementById('disp-name').textContent = data.name;
+                document.getElementById('disp-email').textContent = data.email;
+
+                // 出勤状態チェック
+                if(data.currentStatus === 'working') {
+                    const navOrder = document.getElementById('nav-order');
+                    navOrder.classList.remove('locked');
+                    navOrder.setAttribute('href', 'order.html');
+                    navOrder.style.color = "#adb5bd";
+                }
+            }
+
+            // 今日の売上集計
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            const q = query(collection(db, "tenants", tenantId, "slips"), where("primaryCastId", "==", myUid));
+            const slipsSnap = await getDocs(q);
+            
+            let sales = 0;
+            let count = 0;
+
+            slipsSnap.forEach(d => {
+                const sData = d.data();
+                // 没電以外
+                if (sData.status !== 'void') {
+                    const sDate = sData.startTime ? sData.startTime.toDate() : new Date();
+                    
+                    // 今日の日付かつ、種別が「指名(shime)」の場合のみカウント
+                    if (sDate >= today && sData.visitType === 'shime') {
+                        sales += (sData.totalAmount || 0);
+                        count++;
+                    }
+                }
+            });
+
+            document.getElementById('my-sales-today').textContent = `¥${sales.toLocaleString()}`;
+            document.getElementById('my-count-today').textContent = `${count}本`;
+        }
+
+        window.openNameModal = () => {
+            document.getElementById('new-name').value = document.getElementById('disp-name').textContent;
+            document.getElementById('name-modal').style.display = 'flex';
+        };
+
+        window.updateName = async () => {
+            const newName = document.getElementById('new-name').value;
+            if(!newName) return;
+            try {
+                await updateDoc(doc(db, "tenants", tenantId, "users", myUid), { name: newName });
+                document.getElementById('disp-name').textContent = newName;
+                document.getElementById('name-modal').style.display = 'none';
+            } catch(e) { alert("エラー: " + e.message); }
+        };
+
+        window.openPassModal = () => document.getElementById('pass-modal').style.display = 'flex';
+
+        window.updatePass = async () => {
+            const newPass = document.getElementById('new-pass').value;
+            if(newPass.length < 6) { alert("6文字以上で入力してください"); return; }
+            
+            const user = auth.currentUser;
+            if(user) {
+                try {
+                    await updatePassword(user, newPass);
+                    alert("パスワードを変更しました");
+                    document.getElementById('pass-modal').style.display = 'none';
+                } catch(e) {
+                    console.error(e);
+                    alert("変更失敗: 再ログインしてから試してください");
+                }
+            }
+        };
+
+        document.getElementById('logout-btn').onclick = async () => {
+            await signOut(auth);
+            sessionStorage.clear();
+            window.location.href = "../index.html";
+        };
+
+        init();
+    </script>
+</body>
+</html>

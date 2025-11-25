@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOSPOS - 商品管理</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <style>
+        /* 共通レイアウト */
+        .dashboard-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
+        .main-content { flex: 1; padding: 30px; background-color: var(--bg-color); }
+        
+        .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
+        .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
+        .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
+
+        /* カテゴリタブ */
+        .category-tabs {
+            display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 20px; border-bottom: 1px solid #ddd;
+        }
+        .tab-btn {
+            padding: 8px 16px; border: none; background: #f8f9fa; border-radius: 20px;
+            cursor: pointer; font-weight: bold; color: #666; white-space: nowrap;
+        }
+        .tab-btn.active { background: var(--primary-color); color: white; }
+        .tab-btn-add { background: #e9ecef; color: var(--primary-color); }
+
+        /* 商品リスト (カード型) */
+        .product-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;
+        }
+        .product-card {
+            background: white; border-radius: 8px; padding: 15px;
+            box-shadow: var(--shadow-sm); border: 1px solid #eee;
+            display: flex; flex-direction: column; gap: 8px;
+            cursor: grab; /* ドラッグできることを示すカーソル */
+            position: relative;
+        }
+        .product-card:active { cursor: grabbing; }
+
+        .drag-handle { color: #ccc; position: absolute; top: 10px; right: 10px; cursor: grab; }
+
+        .prod-name { font-weight: bold; font-size: 1.1rem; padding-right: 20px; }
+        .prod-price { font-weight: bold; color: var(--text-main); }
+        
+        .badge-call { background: #fff0f6; color: #c026d3; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; display: inline-block; font-weight: bold; }
+        .badge-link { background: #e6f2ff; color: #007bff; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+
+        .btn-edit { width: 100%; padding: 8px; margin-top: 10px; background: white; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; }
+        .btn-edit:hover { background: #f8f9fa; }
+
+        .add-product-card {
+            border: 2px dashed #ddd; background: transparent; display: flex; align-items: center; justify-content: center;
+            min-height: 150px; cursor: pointer; color: #999; font-weight: bold; border-radius: 8px; transition: 0.2s;
+        }
+        .add-product-card:hover { border-color: var(--primary-color); color: var(--primary-color); background: rgba(0,123,255,0.05); }
+
+        /* モーダル */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; max-width: 95%; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
+        .input-box { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        
+        .switch-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; }
+        .switch-input { transform: scale(1.2); }
+
+        .inventory-link-box {
+            border: 1px solid #cce5ff; background: #e6f2ff; padding: 10px; border-radius: 6px; margin-bottom: 15px; display: none;
+        }
+        .btn-danger { background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; }
+
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+            <nav>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
+                <a href="slips.html" class="menu-item"><i class="fas fa-file-invoice-dollar"></i> 伝票一覧</a>
+                <a href="call-management.html" class="menu-item"><i class="fas fa-music"></i> コール管理</a>
+                <a href="shokai-control.html" class="menu-item"><i class="fas fa-users"></i> 初回・付け回し</a>
+                <a href="products.html" class="menu-item active"><i class="fas fa-wine-bottle"></i> 商品管理</a>
+                <a href="inventory.html" class="menu-item"><i class="fas fa-boxes"></i> 在庫管理</a>
+                <a href="cast-list.html" class="menu-item"><i class="fas fa-user-tie"></i> キャスト管理</a>
+                <a href="attendance.html" class="menu-item"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="customers.html" class="menu-item"><i class="fas fa-address-book"></i> 顧客管理</a>
+                <a href="sales-analysis.html" class="menu-item"><i class="fas fa-chart-line"></i> 売上分析</a>
+                <a href="ranking.html" class="menu-item"><i class="fas fa-trophy"></i> ランキング</a>
+                <a href="daily-report.html" class="menu-item"><i class="fas fa-file-alt"></i> 日報・ログ</a>
+                <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i> 店舗設定</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2 style="margin-bottom: 20px;"><i class="fas fa-wine-bottle"></i> 商品・メニュー管理</h2>
+            
+            <div class="category-tabs" id="category-tabs">
+                <button class="tab-btn active" onclick="filterCategory('All')">All</button>
+                <button class="tab-btn tab-btn-add" onclick="addNewCategory()">+ カテゴリ追加</button>
+            </div>
+
+            <p style="color:#666; font-size:0.9rem; margin-bottom:15px;">
+                <i class="fas fa-arrows-alt"></i> カードをドラッグ＆ドロップして並び替えできます
+            </p>
+
+            <div id="product-grid" class="product-grid">
+                <div class="add-product-card" onclick="openProductModal()">
+                    <div><i class="fas fa-plus-circle"></i> 新規商品追加</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="prod-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title">商品登録</h3>
+            <form id="prod-form">
+                <input type="hidden" id="prod-id">
+                
+                <div class="form-group">
+                    <label>商品名</label>
+                    <input type="text" id="prod-name" class="input-box" required placeholder="例: 鏡月 Green">
+                </div>
+                
+                <div style="display:flex; gap:15px;">
+                    <div class="form-group" style="flex:1;">
+                        <label>価格 (税込)</label>
+                        <input type="number" id="prod-price" class="input-box" required placeholder="5000">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>カテゴリ</label>
+                        <select id="prod-category" class="input-box">
+                            <option value="General">General</option>
+                            </select>
+                    </div>
+                </div>
+
+                <div class="switch-row">
+                    <label>シャンパンコール対象にする</label>
+                    <input type="checkbox" id="prod-is-call" class="switch-input">
+                </div>
+
+                <div class="switch-row">
+                    <label>在庫と連携する (注文時減算)</label>
+                    <input type="checkbox" id="prod-has-link" class="switch-input">
+                </div>
+
+                <div id="inventory-settings" class="inventory-link-box">
+                    <div class="form-group">
+                        <label>連携する在庫アイテム</label>
+                        <select id="prod-linked-inv" class="input-box">
+                            <option value="">選択してください</option>
+                            </select>
+                    </div>
+                    <div class="form-group">
+                        <label>1セットあたりの減算数 (本)</label>
+                        <input type="number" id="prod-link-qty" class="input-box" value="1" min="1">
+                        <p style="font-size:0.8rem; color:#666; margin-top:5px;">
+                            例: 「1セット=2本」の設定なら「2」と入力
+                        </p>
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; margin-top:20px;">
+                    <button type="button" id="btn-delete-prod" class="btn-danger" style="display:none;">削除</button>
+                    <div style="display:flex; gap:10px;">
+                        <button type="button" id="close-modal" class="btn-edit" style="width:auto;">キャンセル</button>
+                        <button type="submit" class="btn-edit" style="background:var(--primary-color); color:white; border:none; width:auto; padding:10px 20px;">保存</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from '../assets/js/firebase-config.js';
+        import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        if (!tenantId) window.location.href = "../index.html";
+
+        // UI
+        const grid = document.getElementById('product-grid');
+        const modal = document.getElementById('prod-modal');
+        const form = document.getElementById('prod-form');
+        const catTabs = document.getElementById('category-tabs');
+        
+        const hasLinkCheck = document.getElementById('prod-has-link');
+        const invSettings = document.getElementById('inventory-settings');
+        const invSelect = document.getElementById('prod-linked-inv');
+        const catSelect = document.getElementById('prod-category');
+
+        let products = [];
+        let inventoryList = [];
+        let categories = ["Beer", "Brandy", "Champagne", "Shochu", "SoftDrink", "Food"]; // デフォルト
+        let currentFilter = "All";
+
+        // 1. 初期化＆データロード
+        async function init() {
+            // 在庫リスト取得 (セレクトボックス用)
+            const iSnap = await getDocs(query(collection(db, "tenants", tenantId, "inventory")));
+            inventoryList = [];
+            iSnap.forEach(d => inventoryList.push({ id: d.id, ...d.data() }));
+            updateInvSelect();
+
+            // 商品監視
+            const q = query(collection(db, "tenants", tenantId, "products"));
+            
+            onSnapshot(q, (snapshot) => {
+                products = [];
+                snapshot.forEach(doc => {
+                    products.push({ id: doc.id, ...doc.data() });
+                });
+
+                // カテゴリ収集 (既存データから)
+                const usedCats = new Set(categories);
+                // 【修正箇所】アロー関数の構文エラーを修正
+                products.forEach(p => {
+                    if(p.category) usedCats.add(p.category);
+                });
+                categories = Array.from(usedCats);
+                updateCategoryTabs();
+                updateCategorySelect();
+
+                renderGrid();
+            });
+        }
+
+        // 2. 描画
+        function renderGrid() {
+            // フィルタリング
+            let displayList = currentFilter === "All" ? products : products.filter(p => p.category === currentFilter);
+            
+            // ソート (sortOrderフィールドがあればそれで、なければ名前順)
+            displayList.sort((a, b) => (a.sortOrder || 999) - (b.sortOrder || 999));
+
+            // グリッドをクリア (ただし追加ボタンは残したいので再生成)
+            grid.innerHTML = "";
+
+            displayList.forEach(p => {
+                const div = document.createElement('div');
+                div.className = "product-card";
+                div.dataset.id = p.id; // ドラッグ用ID
+
+                let tags = "";
+                if(p.isCallTarget) tags += `<span class="badge-call">Call対象</span> `;
+                if(p.linkedInventoryId) tags += `<span class="badge-link">在庫連携</span>`;
+
+                div.innerHTML = `
+                    <div class="drag-handle"><i class="fas fa-grip-lines"></i></div>
+                    <div class="prod-name">${p.name}</div>
+                    <div class="prod-price">¥${Number(p.price).toLocaleString()}</div>
+                    <div style="margin-top:5px;">${tags}</div>
+                    <button class="btn-edit" onclick="editProduct('${p.id}')">編集</button>
+                `;
+                grid.appendChild(div);
+            });
+
+            // 新規追加カードを末尾に
+            const addCard = document.createElement('div');
+            addCard.className = "add-product-card";
+            addCard.innerHTML = `<div><i class="fas fa-plus-circle"></i> 新規商品追加</div>`;
+            addCard.onclick = () => openProductModal();
+            grid.appendChild(addCard);
+        }
+
+        // 3. カテゴリUI更新
+        function updateCategoryTabs() {
+            let html = `<button class="tab-btn ${currentFilter==='All'?'active':''}" onclick="filterCategory('All')">All</button>`;
+            categories.forEach(c => {
+                html += `<button class="tab-btn ${currentFilter===c?'active':''}" onclick="filterCategory('${c}')">${c}</button>`;
+            });
+            html += `<button class="tab-btn tab-btn-add" onclick="addNewCategory()">+ カテゴリ追加</button>`;
+            catTabs.innerHTML = html;
+        }
+
+        function updateCategorySelect() {
+            catSelect.innerHTML = "";
+            categories.forEach(c => {
+                catSelect.innerHTML += `<option value="${c}">${c}</option>`;
+            });
+        }
+
+        // Global functions for onclick
+        window.filterCategory = (cat) => {
+            currentFilter = cat;
+            updateCategoryTabs();
+            renderGrid();
+        };
+
+        window.addNewCategory = () => {
+            const newCat = prompt("新しいカテゴリ名を入力してください");
+            if(newCat && !categories.includes(newCat)) {
+                categories.push(newCat);
+                filterCategory(newCat);
+            }
+        };
+
+        window.openProductModal = () => {
+            form.reset();
+            document.getElementById('prod-id').value = "";
+            document.getElementById('modal-title').textContent = "商品登録";
+            document.getElementById('btn-delete-prod').style.display = "none";
+            invSettings.style.display = 'none';
+            if(currentFilter !== 'All') catSelect.value = currentFilter;
+            modal.style.display = 'flex';
+        };
+
+        window.editProduct = (id) => {
+            const p = products.find(i => i.id === id);
+            if(!p) return;
+
+            document.getElementById('prod-id').value = p.id;
+            document.getElementById('modal-title').textContent = "商品編集";
+            document.getElementById('prod-name').value = p.name;
+            document.getElementById('prod-price').value = p.price;
+            document.getElementById('prod-category').value = p.category;
+            
+            document.getElementById('prod-is-call').checked = p.isCallTarget || false;
+            
+            const hasLink = !!p.linkedInventoryId;
+            document.getElementById('prod-has-link').checked = hasLink;
+            invSettings.style.display = hasLink ? 'block' : 'none';
+            
+            if(hasLink) {
+                document.getElementById('prod-linked-inv').value = p.linkedInventoryId;
+                document.getElementById('prod-link-qty').value = p.quantityPerSet || 1;
+            }
+
+            document.getElementById('btn-delete-prod').style.display = "block";
+            modal.style.display = 'flex';
+        };
+
+        // 4. 在庫セレクトボックス更新
+        function updateInvSelect() {
+            invSelect.innerHTML = '<option value="">選択してください</option>';
+            inventoryList.forEach(inv => {
+                invSelect.innerHTML += `<option value="${inv.id}">${inv.name} (残:${inv.currentStock})</option>`;
+            });
+        }
+
+        // 5. モーダル制御
+        hasLinkCheck.onchange = () => {
+            invSettings.style.display = hasLinkCheck.checked ? 'block' : 'none';
+        };
+
+        document.getElementById('close-modal').onclick = () => modal.style.display = 'none';
+
+        // 6. 保存処理
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('prod-id').value;
+            const name = document.getElementById('prod-name').value;
+            const price = Number(document.getElementById('prod-price').value);
+            const category = document.getElementById('prod-category').value;
+            const isCall = document.getElementById('prod-is-call').checked;
+            const hasLink = document.getElementById('prod-has-link').checked;
+            
+            let linkData = { linkedInventoryId: null, quantityPerSet: null };
+            if(hasLink) {
+                linkData.linkedInventoryId = document.getElementById('prod-linked-inv').value;
+                linkData.quantityPerSet = Number(document.getElementById('prod-link-qty').value);
+                if(!linkData.linkedInventoryId) {
+                    alert("連携する在庫アイテムを選択してください");
+                    return;
+                }
+            }
+
+            const data = {
+                name, price, category, isCallTarget: isCall,
+                ...linkData,
+                lastUpdated: serverTimestamp()
+            };
+
+            try {
+                if(id) {
+                    await updateDoc(doc(db, "tenants", tenantId, "products", id), data);
+                } else {
+                    await addDoc(collection(db, "tenants", tenantId, "products"), {
+                        ...data,
+                        sortOrder: 9999,
+                        createdAt: serverTimestamp()
+                    });
+                }
+                modal.style.display = 'none';
+            } catch(e) { alert("エラー: " + e.message); }
+        });
+
+        // 7. 削除処理
+        document.getElementById('btn-delete-prod').onclick = async () => {
+            const id = document.getElementById('prod-id').value;
+            if(!id) return;
+            if(!confirm("本当に削除しますか？")) return;
+            try {
+                await deleteDoc(doc(db, "tenants", tenantId, "products", id));
+                modal.style.display = 'none';
+            } catch(e) { alert("エラー: " + e.message); }
+        };
+
+        // 8. ドラッグ&ドロップ (SortableJS)
+        new Sortable(grid, {
+            animation: 150,
+            handle: '.drag-handle', // ハンドル部分でのみドラッグ可能
+            ghostClass: 'sortable-ghost',
+            onEnd: async function (evt) {
+                const items = grid.querySelectorAll('.product-card');
+                items.forEach((item, index) => {
+                    const pid = item.dataset.id;
+                    if(pid) {
+                        updateDoc(doc(db, "tenants", tenantId, "products", pid), {
+                            sortOrder: index
+                        });
+                    }
+                });
+            }
+        });
+
+        init();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOSPOS - 伝票一覧</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 共通レイアウト */
+        .dashboard-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
+        .main-content { flex: 1; padding: 30px; background-color: var(--bg-color); }
+        
+        .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
+        .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
+        .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
+
+        /* フィルタエリア */
+        .filter-bar {
+            background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm);
+            display: flex; gap: 15px; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap;
+        }
+        .filter-group label { display: block; font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; }
+        .filter-input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; }
+        
+        .btn-search {
+            padding: 10px 20px; background: var(--primary-color); color: white; border: none; 
+            border-radius: 6px; cursor: pointer; font-weight: bold; height: 42px;
+        }
+
+        /* テーブル */
+        .table-container {
+            background: white; border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); overflow-x: auto;
+        }
+        table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: bold; color: #666; }
+        tr:hover { background: #f8f9fa; cursor: pointer; }
+
+        /* ステータスバッジ */
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+        .badge-active { background: #fff5f5; color: #dc3545; border: 1px solid #f5c6cb; } /* 滞在中 */
+        .badge-paid { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }   /* 会計済 */
+        .badge-void { background: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; }   /* 没電 */
+
+        .amount-cell { font-weight: bold; font-family: monospace; font-size: 1rem; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+            <nav>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
+                <a href="slips.html" class="menu-item active"><i class="fas fa-file-invoice-dollar"></i> 伝票一覧</a>
+                <a href="call-management.html" class="menu-item"><i class="fas fa-music"></i> コール管理</a>
+                <a href="shokai-control.html" class="menu-item"><i class="fas fa-users"></i> 初回・付け回し</a>
+                <a href="products.html" class="menu-item"><i class="fas fa-wine-bottle"></i> 商品管理</a>
+                <a href="inventory.html" class="menu-item"><i class="fas fa-boxes"></i> 在庫管理</a>
+                <a href="cast-list.html" class="menu-item"><i class="fas fa-user-tie"></i> キャスト管理</a>
+                <a href="attendance.html" class="menu-item"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="customers.html" class="menu-item"><i class="fas fa-address-book"></i> 顧客管理</a>
+                <a href="sales-analysis.html" class="menu-item"><i class="fas fa-chart-line"></i> 売上分析</a>
+                <a href="ranking.html" class="menu-item"><i class="fas fa-trophy"></i> ランキング</a>
+                <a href="daily-report.html" class="menu-item"><i class="fas fa-file-alt"></i> 日報・ログ</a>
+                <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i> 店舗設定</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2 style="margin-bottom: 20px;"><i class="fas fa-list"></i> 伝票一覧履歴</h2>
+            
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label>日付 (開始日)</label>
+                    <input type="date" id="date-from" class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label>ステータス</label>
+                    <select id="status-filter" class="filter-input">
+                        <option value="all">すべて</option>
+                        <option value="active">滞在中 (Active)</option>
+                        <option value="paid">会計済 (Paid)</option>
+                        <option value="void">没電 (Void)</option>
+                    </select>
+                </div>
+                <button id="search-btn" class="btn-search"><i class="fas fa-search"></i> 検索</button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>日時 (来店)</th>
+                            <th>卓番</th>
+                            <th>種別</th>
+                            <th>顧客名</th>
+                            <th>ステータス</th>
+                            <th>総額</th>
+                            <th>詳細</th>
+                        </tr>
+                    </thead>
+                    <tbody id="slips-list">
+                        <tr><td colspan="7" style="text-align:center; padding:30px;">読み込み中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from '../assets/js/firebase-config.js';
+        import { collection, query, where, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        if (!tenantId) window.location.href = "../index.html";
+
+        const listBody = document.getElementById('slips-list');
+        const dateFromInput = document.getElementById('date-from');
+        const statusSelect = document.getElementById('status-filter');
+        const searchBtn = document.getElementById('search-btn');
+
+        // デフォルトで今日の日付
+        dateFromInput.valueAsDate = new Date();
+
+        async function loadSlips() {
+            listBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;">検索中...</td></tr>';
+
+            try {
+                // インデックスエラーを避けるため、ここではシンプルなクエリにする
+                // 「日付順」で直近100件を取得し、クライアント側でフィルタリングする方式を採用
+                // これなら複合インデックス設定なしで確実に動きます
+                const q = query(
+                    collection(db, "tenants", tenantId, "slips"),
+                    orderBy("startTime", "desc"), // 最新順
+                    limit(100) // とりあえず100件
+                );
+
+                const snapshot = await getDocs(q);
+                
+                if (snapshot.empty) {
+                    listBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;">データがありません</td></tr>';
+                    return;
+                }
+
+                const filterDate = new Date(dateFromInput.value);
+                filterDate.setHours(0,0,0,0); // 0時0分
+                
+                const filterStatus = statusSelect.value;
+                let hasData = false;
+                
+                listBody.innerHTML = ""; // クリア
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const date = data.startTime ? data.startTime.toDate() : new Date();
+                    const dateStr = date.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+                    
+                    // --- JSフィルタリング ---
+                    // 1. 日付: 選択された日付「以降」のものを表示
+                    if (date < filterDate) return; 
+
+                    // 2. ステータス
+                    if (filterStatus !== 'all' && data.status !== filterStatus) return;
+
+                    hasData = true;
+
+                    // バッジ作成
+                    let badge = `<span class="badge badge-active">滞在中</span>`;
+                    if (data.status === 'paid') badge = `<span class="badge badge-paid">会計済</span>`;
+                    if (data.status === 'void') badge = `<span class="badge badge-void">没電</span>`;
+
+                    // 種別
+                    let typeText = "Free";
+                    if (data.visitType === 'shime') typeText = "指名";
+                    else if (data.visitType === 'eda') typeText = "枝";
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${dateStr}</td>
+                        <td style="font-weight:bold;">${data.tableId}</td>
+                        <td>${typeText}</td>
+                        <td>${data.customerName || '-'}</td>
+                        <td>${badge}</td>
+                        <td class="amount-cell">¥${(data.totalAmount || 0).toLocaleString()}</td>
+                        <td style="color:var(--primary-color); font-size:0.9rem;"><i class="fas fa-chevron-right"></i></td>
+                    `;
+                    
+                    // クリックで詳細へ
+                    tr.onclick = () => {
+                        window.location.href = `slip-detail.html?id=${doc.id}`;
+                    };
+
+                    listBody.appendChild(tr);
+                });
+
+                if (!hasData) {
+                    listBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;">条件に一致する伝票はありません</td></tr>';
+                }
+
+            } catch (error) {
+                console.error(error);
+                listBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">エラー: ${error.message}</td></tr>`;
+            }
+        }
+
+        searchBtn.addEventListener('click', loadSlips);
+
+        // 初回実行
+        loadSlips();
+
+    </script>
+</body>
+</html>
