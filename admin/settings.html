@@ -86,6 +86,7 @@
                 
                 <div class="tabs-nav">
                     <button type="button" class="tab-btn active" onclick="switchTab('basic')"><i class="fas fa-store"></i> 基本・営業</button>
+                    <button type="button" class="tab-btn" onclick="switchTab('tables')"><i class="fas fa-chair"></i> テーブル設定</button>
                     <button type="button" class="tab-btn" onclick="switchTab('accounting')"><i class="fas fa-calculator"></i> 会計・システム</button>
                     <button type="button" class="tab-btn" onclick="switchTab('salary')"><i class="fas fa-money-bill-wave"></i> 給与・報酬</button>
                     <button type="button" class="tab-btn" onclick="switchTab('call')"><i class="fas fa-music"></i> 演出・コール</button>
@@ -159,6 +160,14 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <div id="tab-tables" class="settings-section">
+                        <div class="section-title">テーブル構成設定</div>
+                        <p class="helper-text">店舗の座席（テーブル）を登録・管理します。<br>※ここで設定したテーブル名は、ダッシュボードやオーダー画面のテーブル一覧に反映されます。</p>
+                        
+                        <div id="tables-container"></div>
+                        <button type="button" class="btn-add" onclick="addTableRow()">+ テーブルを追加</button>
                     </div>
 
                     <div id="tab-accounting" class="settings-section">
@@ -291,8 +300,20 @@
         // コンテナ
         const callContainer = document.getElementById('call-grades-container');
         const slideContainer = document.getElementById('slide-container');
+        const tablesContainer = document.getElementById('tables-container');
 
-        // 行追加関数
+        // 行追加関数 (テーブル用)
+        window.addTableRow = (name="") => {
+            const div = document.createElement('div');
+            div.className = 'list-row';
+            div.innerHTML = `
+                <input type="text" class="table-name" placeholder="テーブル名 (例: T1, VIP)" value="${name}" style="flex:1">
+                <button type="button" class="btn-delete" onclick="this.parentElement.remove()"><i class="fas fa-trash"></i></button>
+            `;
+            tablesContainer.appendChild(div);
+        };
+
+        // 行追加関数 (コール用)
         window.addGradeRow = (name="", th=0, col="#000", sng="") => {
             const div = document.createElement('div');
             div.className = 'list-row';
@@ -348,6 +369,10 @@
                         });
                     }
 
+                    // テーブル設定
+                    const tables = conf.tables || ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "VIP1", "VIP2"];
+                    tables.forEach(t => addTableRow(t));
+
                     // 給与設定
                     const salary = conf.salary || {};
                     document.getElementById('salary-base-type').value = salary.basePayType || 'daily';
@@ -392,6 +417,11 @@
                 });
             });
 
+            const tablesData = [];
+            document.querySelectorAll('#tables-container .table-name').forEach(input => {
+                if(input.value.trim()) tablesData.push(input.value.trim());
+            });
+
             const holidays = [];
             document.querySelectorAll('.week-chk:checked').forEach(chk => holidays.push(Number(chk.value)));
 
@@ -401,6 +431,7 @@
                 address: document.getElementById('address').value,
                 phone: document.getElementById('phone').value,
                 config: {
+                    tables: tablesData,
                     taxRate: Number(document.getElementById('taxRate').value),
                     serviceRate: Number(document.getElementById('serviceRate').value),
                     rounding: document.getElementById('rounding').value,

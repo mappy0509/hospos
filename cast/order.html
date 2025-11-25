@@ -7,72 +7,76 @@
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* (既存スタイル) */
+        /* 既存スタイル */
         body { background-color: #f8f9fa; padding-bottom: 80px; }
         .page-header { background: white; padding: 15px 20px; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
         .page-title { font-weight: bold; font-size: 1.1rem; }
-
         .table-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 20px; }
         .table-card { background: white; border-radius: 12px; aspect-ratio: 1 / 1; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: var(--shadow-sm); cursor: pointer; position: relative; border: 2px solid transparent; transition: 0.1s; }
         .table-card:active { transform: scale(0.95); }
-        .table-name { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; }
+        .table-name { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; word-break: break-all; text-align: center; line-height: 1.2; }
         .table-status { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; }
-
         .table-empty { border-color: #e9ecef; }
         .table-empty .table-name { color: var(--text-main); }
         .table-empty .table-status { background: #e6f2ff; color: var(--primary-color); }
-        .table-empty .icon { color: #dee2e6; font-size: 1.5rem; margin-bottom: 5px; }
-
         .table-occupied { background-color: #fff5f5; border-color: #ffadad; }
         .table-occupied .table-name { color: #c92a2a; }
         .table-occupied .table-status { background: #ffc9c9; color: #a61e4d; font-weight: bold; }
-        .table-occupied .icon { color: #ff8787; font-size: 1.5rem; margin-bottom: 5px; }
-        .guest-info { font-size: 0.7rem; color: #666; margin-top: 5px; text-align: center; }
-
+        .guest-info { font-size: 0.7rem; color: #666; margin-top: 5px; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: flex-end; }
         .modal-sheet { background: white; width: 100%; border-radius: 20px 20px 0 0; padding: 25px; animation: slideUp 0.3s ease-out; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .sheet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .sheet-title { font-weight: bold; font-size: 1.2rem; }
         .selection-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
         .select-btn { padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: white; text-align: center; font-size: 0.9rem; }
         .select-btn.selected { background: var(--primary-color); color: white; border-color: var(--primary-color); }
         .number-input { width: 100%; padding: 15px; font-size: 1.2rem; text-align: center; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 20px; }
+        .aiban-menu { display: flex; flex-direction: column; gap: 10px; }
+        .aiban-btn { padding: 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; text-align: left; font-weight: bold; }
+        .aiban-new { background: #e6f2ff; color: var(--primary-color); border-color: var(--primary-color); text-align: center; }
+        .cast-select-wrapper { margin-bottom: 20px; display: none; }
+        .cast-select-wrapper select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 1rem; background: #fff; margin-bottom: 10px; }
     </style>
 </head>
 <body>
-
-    <div class="page-header">
-        <div class="page-title"><i class="fas fa-couch"></i> テーブル選択</div>
-        <div style="font-size:0.8rem; color:var(--text-sub);">出勤中</div>
-    </div>
-
-    <div class="table-grid" id="table-container">
-        <div style="grid-column: 1/-1; text-align:center; padding:20px;">読み込み中...</div>
-    </div>
+    <div class="page-header"><div class="page-title"><i class="fas fa-couch"></i> テーブル選択</div><div style="font-size:0.8rem; color:var(--text-sub);">出勤中</div></div>
+    <div class="table-grid" id="table-container"><div style="grid-column: 1/-1; text-align:center; padding:20px;">読み込み中...</div></div>
 
     <div id="checkin-modal" class="modal-overlay">
         <div class="modal-sheet">
-            <div class="sheet-header">
-                <div class="sheet-title">卓 <span id="modal-table-name"></span> : 入店処理</div>
-                <button id="close-modal" style="background:none; border:none; font-size:1.5rem;"><i class="fas fa-times"></i></button>
-            </div>
+            <div class="sheet-header"><div class="sheet-title">卓 <span id="modal-table-name"></span> : 入店処理</div><button onclick="document.getElementById('checkin-modal').style.display='none'" style="background:none; border:none; font-size:1.5rem;"><i class="fas fa-times"></i></button></div>
             <form id="start-slip-form">
-                <label style="font-weight:bold; display:block; margin-bottom:10px;">来店スタイル</label>
                 <div class="selection-grid">
                     <div class="select-btn selected" onclick="selectType(this, 'shime')">指名</div>
                     <div class="select-btn" onclick="selectType(this, 'free')">フリー</div>
-                    <div class="select-btn" onclick="selectType(this, 'eda')">枝/場内</div>
+                    <div class="select-btn" onclick="selectType(this, 'eda')">枝</div>
                 </div>
                 <input type="hidden" id="slip-type" value="shime">
-                <label style="font-weight:bold; display:block; margin-bottom:10px;">お客様人数</label>
-                <input type="number" id="guest-count" class="number-input" value="1" min="1">
-                <div class="form-group">
-                    <label style="font-weight:bold; display:block; margin-bottom:10px;">お客様名（任意）</label>
-                    <input type="text" id="customer-name" placeholder="例: みかさん" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd;">
+
+                <div class="cast-select-wrapper" id="cast-select-wrapper" style="display:block;">
+                    <label style="font-weight:bold;">指名客 (リストから選択)</label>
+                    <select id="start-slip-customer-select" onchange="checkNewCustomer(this.value)"><option value="">読み込み中...</option></select>
                 </div>
+
+                <label style="font-weight:bold;">人数</label>
+                <input type="number" id="guest-count" class="number-input" value="1" min="1">
+                
+                <div id="new-customer-input-area" style="display:none;">
+                    <label style="font-weight:bold;">お客様名 (新規)</label>
+                    <input type="text" id="customer-name" placeholder="例: みかさん" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin-bottom:15px;">
+                </div>
+
                 <button type="submit" class="btn-primary" style="margin-top:10px;" id="start-btn">伝票を開始する</button>
             </form>
+        </div>
+    </div>
+
+    <div id="aiban-modal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="sheet-header"><div class="sheet-title">卓 <span id="aiban-table-name"></span> : 操作選択</div><button onclick="document.getElementById('aiban-modal').style.display='none'" style="background:none; border:none; font-size:1.5rem;"><i class="fas fa-times"></i></button></div>
+            <div id="aiban-list" class="aiban-menu"></div>
+            <button class="aiban-btn aiban-new" id="btn-aiban-create">＋ 相席で新規伝票を作成</button>
         </div>
     </div>
 
@@ -85,7 +89,7 @@
 
     <script type="module">
         import { db } from '../assets/js/firebase-config.js';
-        import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, getDocs, runTransaction } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
         import { getBusinessDate, formatDateYMD } from '../assets/js/utils.js';
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
@@ -93,134 +97,167 @@
         if (!tenantId) window.location.href = "../index.html";
 
         const tableContainer = document.getElementById('table-container');
-        const modal = document.getElementById('checkin-modal');
-        const closeModal = document.getElementById('close-modal');
-        const startSlipForm = document.getElementById('start-slip-form');
-        const startBtn = document.getElementById('start-btn');
+        const aibanModal = document.getElementById('aiban-modal');
+        const checkinModal = document.getElementById('checkin-modal');
         
-        const TABLES = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "VIP1", "VIP2"];
-        let activeSlips = {};
+        let masterTables = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "VIP1", "VIP2"];
+        let activeSlips = {}; 
         let cutoffHour = 0;
+        let myCustomerList = [];
+        let myName = ""; // 自分の名前
 
-        // 設定読み込み
         async function loadConfig() {
             try {
                 const docSnap = await getDoc(doc(db, "tenants", tenantId));
                 if(docSnap.exists()) {
-                    cutoffHour = docSnap.data().config?.businessDay?.cutoffHour ?? 0;
+                    const d = docSnap.data();
+                    if (d.config?.tables) masterTables = d.config.tables;
+                    if (d.config?.businessDay?.cutoffHour !== undefined) cutoffHour = d.config.businessDay.cutoffHour;
                 }
-            } catch(e) { console.error(e); }
-        }
-        loadConfig();
+                // 自分の情報を取得（名前を取得するため）
+                const uSnap = await getDoc(doc(db, "tenants", tenantId, "users", myUid));
+                if(uSnap.exists()) myName = uSnap.data().name;
 
-        // アクティブ伝票監視
-        const q = query(collection(db, "tenants", tenantId, "slips"), where("status", "==", "active"));
-        onSnapshot(q, (snapshot) => {
-            activeSlips = {};
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                activeSlips[data.tableId] = { id: doc.id, ...data };
+                loadMyCustomers();
+                startSlipListener();
+            } catch(e) { startSlipListener(); }
+        }
+
+        async function loadMyCustomers() {
+            const q = query(collection(db, "tenants", tenantId, "customers"), where("assignedCastId", "==", myUid));
+            const snap = await getDocs(q);
+            const select = document.getElementById('start-slip-customer-select');
+            select.innerHTML = '<option value="NEW">★新規登録 (入力)</option>';
+            myCustomerList = [];
+            snap.forEach(doc => {
+                const c = doc.data();
+                myCustomerList.push(c.name);
+                select.innerHTML += `<option value="${c.name}">${c.name}</option>`;
             });
-            renderTables();
-        });
+            checkNewCustomer("NEW"); 
+        }
+
+        window.checkNewCustomer = (val) => {
+            const area = document.getElementById('new-customer-input-area');
+            const input = document.getElementById('customer-name');
+            if(val === 'NEW') { area.style.display = 'block'; input.value = ""; } 
+            else { area.style.display = 'none'; input.value = val; }
+        };
+
+        function startSlipListener() {
+            const q = query(collection(db, "tenants", tenantId, "slips"), where("status", "==", "active"));
+            onSnapshot(q, (snapshot) => {
+                activeSlips = {};
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if(!activeSlips[data.tableId]) activeSlips[data.tableId] = [];
+                    activeSlips[data.tableId].push({ id: doc.id, ...data });
+                });
+                renderTables();
+            });
+        }
 
         function renderTables() {
             tableContainer.innerHTML = "";
-            TABLES.forEach(tableName => {
-                const slip = activeSlips[tableName];
+            masterTables.forEach(tbl => {
+                const slips = activeSlips[tbl];
                 const div = document.createElement('div');
-                if (slip) {
+                if (slips && slips.length > 0) {
                     div.className = "table-card table-occupied";
-                    div.innerHTML = `
-                        <i class="fas fa-glass-cheers icon"></i>
-                        <div class="table-name">${tableName}</div>
-                        <div class="table-status">No.${slip.slipNumber || '-'}</div>
-                        <div class="guest-info">${slip.customerName || '名称未設定'}</div>
-                    `;
-                    div.onclick = () => { window.location.href = `menu.html?slipId=${slip.id}`; };
+                    const label = slips.length > 1 ? `${slips.length}組 (相席)` : slips[0].customerName;
+                    div.innerHTML = `<i class="fas fa-glass-cheers icon"></i><div class="table-name">${tbl}</div><div class="table-status">Occupied</div><div class="guest-info">${label}</div>`;
+                    div.onclick = () => openAibanModal(tbl, slips);
                 } else {
                     div.className = "table-card table-empty";
-                    div.innerHTML = `<div class="table-name">${tableName}</div><div class="table-status">空席</div>`;
-                    div.onclick = () => openCheckinModal(tableName);
+                    div.innerHTML = `<div class="table-name">${tbl}</div><div class="table-status">空席</div>`;
+                    div.onclick = () => openCheckinModal(tbl);
                 }
                 tableContainer.appendChild(div);
             });
         }
 
-        let selectedTableId = null;
-        function openCheckinModal(tableId) {
-            selectedTableId = tableId;
-            document.getElementById('modal-table-name').textContent = tableId;
-            document.getElementById('customer-name').value = "";
-            document.getElementById('guest-count').value = 1;
-            modal.style.display = 'flex';
+        function openAibanModal(tableId, slips) {
+            document.getElementById('aiban-table-name').textContent = tableId;
+            const list = document.getElementById('aiban-list');
+            list.innerHTML = "";
+            slips.forEach(s => {
+                const btn = document.createElement('button');
+                btn.className = "aiban-btn";
+                btn.innerHTML = `<div>${s.customerName} 様</div><div style="font-size:0.8rem; color:#666;">¥${(s.totalAmount||0).toLocaleString()}</div>`;
+                btn.onclick = () => window.location.href = `menu.html?slipId=${s.id}`;
+                list.appendChild(btn);
+            });
+            document.getElementById('btn-aiban-create').onclick = () => { document.getElementById('aiban-modal').style.display = 'none'; openCheckinModal(tableId); };
+            aibanModal.style.display = 'flex';
         }
-        closeModal.onclick = () => { modal.style.display = 'none'; };
+
+        function openCheckinModal(tableId) {
+            document.getElementById('modal-table-name').textContent = tableId;
+            document.getElementById('guest-count').value = 1;
+            selectType(document.querySelector('.select-btn:first-child'), 'shime');
+            checkinModal.style.display = 'flex';
+        }
+
         window.selectType = (el, type) => {
             document.querySelectorAll('.select-btn').forEach(btn => btn.classList.remove('selected'));
             el.classList.add('selected');
             document.getElementById('slip-type').value = type;
+            document.getElementById('cast-select-wrapper').style.display = (type === 'shime') ? 'block' : 'none';
+            document.getElementById('new-customer-input-area').style.display = (type === 'shime') ? 'none' : 'block'; 
+            if(type === 'shime') { checkNewCustomer(document.getElementById('start-slip-customer-select').value); } 
+            else { document.getElementById('customer-name').value = ""; }
         };
 
-        // 伝票開始 (トランザクションで連番採番)
-        startSlipForm.addEventListener('submit', async (e) => {
+        document.getElementById('start-slip-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            startBtn.disabled = true; startBtn.textContent = "処理中...";
+            const btn = document.getElementById('start-btn');
+            btn.disabled = true; btn.textContent = "処理中...";
 
+            const tableId = document.getElementById('modal-table-name').textContent;
             const type = document.getElementById('slip-type').value;
             const count = Number(document.getElementById('guest-count').value);
             const custName = document.getElementById('customer-name').value;
-            
+            const isNew = document.getElementById('start-slip-customer-select').value === 'NEW';
+
+            if(type === 'shime' && isNew && myCustomerList.includes(custName)) {
+                alert("その名前のお客様は既に登録済みです。リストから選択してください。");
+                btn.disabled = false; btn.textContent = "伝票を開始する"; return;
+            }
+
             try {
-                // 1. 本日の営業日文字列を取得
+                if(type === 'shime' && isNew) {
+                    await addDoc(collection(db, "tenants", tenantId, "customers"), {
+                        name: custName, assignedCastId: myUid, createdAt: serverTimestamp(), lastUpdated: serverTimestamp()
+                    });
+                }
+
                 const businessDate = getBusinessDate(new Date(), cutoffHour);
                 const dateStr = formatDateYMD(businessDate);
-                
-                // 2. トランザクション実行 (カウンタ更新 + 伝票作成)
                 let newSlipId;
-                
+
                 await runTransaction(db, async (transaction) => {
-                    // カウンタドキュメントの参照
                     const counterRef = doc(db, "tenants", tenantId, "counters", dateStr);
                     const counterDoc = await transaction.get(counterRef);
-                    
                     let newNumber = 1;
-                    if (counterDoc.exists()) {
-                        newNumber = counterDoc.data().count + 1;
-                    }
-
-                    // カウンタを更新
+                    if (counterDoc.exists()) newNumber = counterDoc.data().count + 1;
                     transaction.set(counterRef, { count: newNumber }, { merge: true });
 
-                    // 新しい伝票の参照を作成
                     const slipRef = doc(collection(db, "tenants", tenantId, "slips"));
                     newSlipId = slipRef.id;
-
-                    // 伝票データをセット
                     transaction.set(slipRef, {
-                        tableId: selectedTableId,
-                        status: "active",
-                        startTime: serverTimestamp(),
-                        primaryCastId: myUid,
+                        tableId: tableId, status: "active", startTime: serverTimestamp(),
+                        primaryCastId: myUid, // 自分のID
+                        primaryCastName: myName || "Unknown", // ★自分の名前を保存 (ここが重要)
                         customerName: custName || "新規客様",
-                        visitType: type,
-                        guestCount: count,
-                        totalAmount: 0,
-                        callBatchAmount: 0,
-                        slipNumber: newNumber, // 通し番号
-                        businessDate: dateStr, // 集計用日付文字列
-                        orders: [] 
+                        visitType: type, guestCount: count,
+                        totalAmount: 0, callBatchAmount: 0, slipNumber: newNumber, businessDate: dateStr, orders: [] 
                     });
                 });
-
                 window.location.href = `menu.html?slipId=${newSlipId}`;
-
-            } catch (error) {
-                console.error("伝票作成エラー:", error);
-                alert("エラーが発生しました: " + error.message);
-                startBtn.disabled = false; startBtn.textContent = "伝票を開始する";
-            }
+            } catch (error) { alert("エラー: " + error.message); btn.disabled = false; btn.textContent = "伝票を開始する"; }
         });
+
+        loadConfig();
     </script>
 </body>
 </html>

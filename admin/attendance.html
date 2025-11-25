@@ -40,12 +40,29 @@
         #qrcode { margin: 20px 0; padding: 10px; border: 1px solid #eee; background: white; }
         .timer-bar-bg { width: 100%; max-width: 300px; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-top: 10px; }
         .timer-bar { height: 100%; background: var(--primary-color); width: 100%; transition: width 1s linear; }
+        
+        /* Mobile Header */
+        .admin-mobile-header { display: none; background: white; padding: 15px; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-sm); }
+        .mobile-menu-btn { background: none; border: none; font-size: 1.5rem; }
+
+        @media (max-width: 768px) {
+            .dashboard-container { flex-direction: column; }
+            .sidebar { display: none; width: 100%; position: fixed; top: 60px; left: 0; height: calc(100vh - 60px); z-index: 99; }
+            .sidebar.active { display: flex; }
+            .admin-mobile-header { display: flex; }
+            .main-content { padding: 20px; }
+        }
     </style>
 </head>
 <body>
 
+    <div class="admin-mobile-header">
+        <div style="font-weight:bold; font-size:1.2rem; color:var(--primary-color);"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+        <button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('active')"><i class="fas fa-bars"></i></button>
+    </div>
+
     <div class="dashboard-container">
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
             <nav>
                 <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
@@ -106,7 +123,7 @@
 
     <script type="module">
         import { db } from '../assets/js/firebase-config.js';
-        import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, orderBy, Timestamp, getDocs, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, orderBy, Timestamp, getDocs, setDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         if (!tenantId) window.location.href = "../index.html";
@@ -176,12 +193,39 @@
         };
         window.closeModal = () => modal.style.display = 'none';
         function updateCastSelect() { castSelect.innerHTML = ""; castData.forEach(c => { castSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`; }); }
+        
+        // 手動打刻登録
         window.submitLog = async () => {
-            const castId = castSelect.value; const type = document.getElementById('log-type').value; const timeVal = document.getElementById('log-time').value;
+            const castId = castSelect.value; 
+            const type = document.getElementById('log-type').value; 
+            const timeVal = document.getElementById('log-time').value;
+            
             if(!castId || !timeVal) return;
-            const cast = castData.find(c => c.id === castId); const timestamp = new Date(timeVal);
-            try { await addDoc(collection(db, "tenants", tenantId, "attendance"), { userId: castId, userName: cast.name, type: type, timestamp: Timestamp.fromDate(timestamp) }); closeModal(); } catch(e) { alert("エラー: " + e.message); }
+            
+            const cast = castData.find(c => c.id === castId); 
+            const timestamp = new Date(timeVal);
+            const newStatus = type === 'in' ? 'working' : 'off';
+
+            try { 
+                // 1. 打刻履歴を追加
+                await addDoc(collection(db, "tenants", tenantId, "attendance"), { 
+                    userId: castId, 
+                    userName: cast.name, 
+                    type: type, 
+                    timestamp: Timestamp.fromDate(timestamp) 
+                }); 
+                
+                // 2. ユーザーの現在のステータスを更新 (ここが修正ポイント)
+                await updateDoc(doc(db, "tenants", tenantId, "users", castId), {
+                    currentStatus: newStatus
+                });
+
+                closeModal(); 
+            } catch(e) { 
+                alert("エラー: " + e.message); 
+            }
         };
+
         window.deleteLog = async (id) => { if(!confirm("この履歴を削除しますか？")) return; await deleteDoc(doc(db, "tenants", tenantId, "attendance", id)); };
 
         updateQrCode(); startStatusListener(); startHistoryListener();

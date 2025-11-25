@@ -18,46 +18,34 @@
         .order-item { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; padding: 12px; border-bottom: 1px solid #eee; align-items: center; }
         .order-header { background: #f8f9fa; font-weight: bold; color: #666; position: sticky; top: 0; }
         
-        /* 右側：会計パネル (スタイル強化) */
+        /* 右側：会計パネル */
         .payment-section { flex: 1.2; background: white; border-radius: 12px; padding: 25px; box-shadow: var(--shadow-sm); height: fit-content; position: sticky; top: 30px; }
-        
         .calc-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; }
-        .calc-total-box {
-            background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;
-            text-align: right; border: 2px solid #e9ecef;
-        }
+        .calc-total-box { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; text-align: right; border: 2px solid #e9ecef; }
         .total-label { font-size: 0.9rem; color: #666; display: block; }
         .total-amount { font-size: 2rem; font-weight: bold; color: var(--text-main); line-height: 1.2; }
-
-        /* 支払い入力エリア */
-        .payment-inputs {
-            background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 20px;
-        }
+        .payment-inputs { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
         .pay-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
         .pay-row label { font-weight: bold; width: 100px; }
-        .pay-input {
-            flex: 1; padding: 10px; font-size: 1.1rem; text-align: right;
-            border: 1px solid #ccc; border-radius: 6px;
-        }
-        .pay-input:focus { border-color: var(--primary-color); outline: none; background: #f0f8ff; }
-
-        /* 結果表示 (お釣り・売掛) */
-        .result-box {
-            padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px;
-            font-weight: bold; font-size: 1.2rem; display: none; /* JSで制御 */
-        }
+        .pay-input { flex: 1; padding: 10px; font-size: 1.1rem; text-align: right; border: 1px solid #ccc; border-radius: 6px; }
+        .result-box { padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px; font-weight: bold; font-size: 1.2rem; display: none; }
         .result-change { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .result-debt { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-
         .btn-checkout { width: 100%; padding: 15px; font-size: 1.1rem; margin-top: 10px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .btn-checkout:hover { background: #218838; }
         .btn-checkout:disabled { background: #ccc; cursor: not-allowed; }
-        
         .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
         .btn-sub { flex: 1; padding: 10px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: bold; color: #555; }
-        .btn-sub:hover { background: #f8f9fa; }
+        .btn-add-order { width: 100%; padding: 10px; background: #e6f2ff; color: var(--primary-color); border: 1px dashed var(--primary-color); border-radius: 8px; margin-top: 10px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-add-order:hover { background: #cce5ff; }
 
-        /* 印刷用などは前回と同じ */
+        /* モーダル系 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; max-width: 95%; max-height: 80vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+        .prod-select-list { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .prod-option { padding: 10px; border: 1px solid #eee; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .prod-option:hover { background: #f8f9fa; }
+        .prod-option.selected { border-color: var(--primary-color); background: #e6f2ff; }
+
         @media print {
             body * { visibility: hidden; }
             #receipt-area, #receipt-area * { visibility: visible; }
@@ -65,7 +53,6 @@
         }
         #receipt-area { display: none; background: #fff; width: 300px; padding: 20px; }
         .receipt-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .receipt-total { border-top: 1px dashed #000; padding: 10px 0; margin: 10px 0; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -90,6 +77,10 @@
                     <div>小計</div>
                 </div>
                 <div id="order-list-container" class="order-list"></div>
+                
+                <button class="btn-add-order" onclick="openAddOrderModal()">
+                    <i class="fas fa-plus-circle"></i> 商品を追加する (内勤用)
+                </button>
             </div>
 
             <div class="payment-section">
@@ -108,26 +99,16 @@
                 </div>
 
                 <div class="payment-inputs">
-                    <div class="pay-row">
-                        <label><i class="fas fa-money-bill-wave"></i> 現金</label>
-                        <input type="number" id="pay-cash" class="pay-input" placeholder="0" min="0">
-                    </div>
-                    <div class="pay-row">
-                        <label><i class="fas fa-credit-card"></i> カード</label>
-                        <input type="number" id="pay-card" class="pay-input" placeholder="0" min="0">
-                    </div>
+                    <div class="pay-row"><label>現金</label><input type="number" id="pay-cash" class="pay-input" placeholder="0" min="0"></div>
+                    <div class="pay-row"><label>カード</label><input type="number" id="pay-card" class="pay-input" placeholder="0" min="0"></div>
                     <div class="pay-row" style="border-top:1px dashed #ddd; padding-top:10px; margin-top:10px;">
                         <label style="color:#dc3545;">売掛予定</label>
                         <span id="pay-credit" style="flex:1; text-align:right; font-weight:bold; color:#dc3545; font-size:1.1rem;">¥0</span>
                     </div>
                 </div>
 
-                <div id="result-change" class="result-box result-change">
-                    お釣り: <span id="val-change">¥0</span>
-                </div>
-                <div id="result-debt" class="result-box result-debt">
-                    不足 (売掛): <span id="val-debt">¥0</span>
-                </div>
+                <div id="result-change" class="result-box result-change">お釣り: <span id="val-change">¥0</span></div>
+                <div id="result-debt" class="result-box result-debt">不足 (売掛): <span id="val-debt">¥0</span></div>
 
                 <button id="btn-checkout" class="btn-checkout" disabled>金額を入力してください</button>
                 
@@ -139,55 +120,65 @@
         </div>
     </div>
 
+    <div id="add-order-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>商品追加</h3>
+            <input type="text" id="prod-search" placeholder="商品名で検索..." style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px;">
+            <div id="prod-list" class="prod-select-list">読み込み中...</div>
+            
+            <div style="margin-top:20px; border-top:1px solid #eee; padding-top:15px;">
+                <label style="font-weight:bold;">数量: </label>
+                <input type="number" id="new-order-qty" value="1" min="1" style="width:60px; padding:5px; text-align:center;">
+                <span id="selected-prod-name" style="margin-left:10px; font-weight:bold; color:var(--primary-color);"></span>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn-checkout" id="do-add-btn" disabled onclick="submitNewOrder()">追加する</button>
+                <button class="btn-sub" onclick="document.getElementById('add-order-modal').style.display='none'">閉じる</button>
+            </div>
+        </div>
+    </div>
+
     <div id="receipt-area">
         <div style="text-align:center; font-weight:bold; margin-bottom:10px;" id="rec-store-name"></div>
         <div style="font-size:0.8rem; border-bottom:1px dashed #000; margin-bottom:10px;">
-            Date: <span id="rec-date"></span><br>
-            Table: <span id="rec-table"></span>
+            Date: <span id="rec-date"></span><br>Table: <span id="rec-table"></span>
         </div>
         <div id="rec-items"></div>
         <div style="border-top:1px dashed #000; margin:10px 0;"></div>
         <div class="receipt-row" style="font-weight:bold;"><span>TOTAL</span> <span id="rec-total"></span></div>
         <div class="receipt-row"><span>Cash</span> <span id="rec-cash"></span></div>
         <div class="receipt-row"><span>Card</span> <span id="rec-card"></span></div>
-        <div class="receipt-row"><span>Credit(売掛)</span> <span id="rec-debt"></span></div>
+        <div class="receipt-row"><span>Credit</span> <span id="rec-debt"></span></div>
         <div class="receipt-row" style="margin-top:5px; font-weight:bold;"><span>Change</span> <span id="rec-change"></span></div>
-        <div style="text-align:center; font-size:0.7rem; margin-top:20px;">Thank you!</div>
     </div>
 
     <script type="module">
         import { db } from '../assets/js/firebase-config.js';
-        import { doc, getDoc, collection, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { doc, getDoc, collection, getDocs, updateDoc, addDoc, serverTimestamp, increment, writeBatch } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         const params = new URLSearchParams(window.location.search);
         let slipId = params.get('id');
-
-        // デモ用処理
-        if(!slipId) {
-             slipId = prompt("伝票IDを入力してください"); 
-             if(!slipId) window.location.href="dashboard.html";
-        }
+        if(!slipId) { slipId = prompt("伝票IDを入力してください"); if(!slipId) window.location.href="dashboard.html"; }
 
         let config = { tax: 10, service: 30, rounding: 'up_10' };
         let slipData = null;
         let tenantInfo = {};
         let currentOrders = [];
-        let calcResult = { grandTotal: 0 }; // 計算結果保持
+        let allProducts = [];
+        let selectedProduct = null;
+        let calcResult = { grandTotal: 0 };
 
-        // UI
+        // UI Elements
         const inputCash = document.getElementById('pay-cash');
         const inputCard = document.getElementById('pay-card');
         const displayCredit = document.getElementById('pay-credit');
         const resultChange = document.getElementById('result-change');
         const resultDebt = document.getElementById('result-debt');
-        const valChange = document.getElementById('val-change');
-        const valDebt = document.getElementById('val-debt');
         const btnCheckout = document.getElementById('btn-checkout');
 
-        // 1. 初期ロード
         async function init() {
-            // 店舗設定取得
             const tSnap = await getDoc(doc(db, "tenants", tenantId));
             if(tSnap.exists()) {
                 tenantInfo = tSnap.data();
@@ -200,22 +191,21 @@
                 document.getElementById('rate-tax').textContent = config.tax;
             }
             loadSlip();
+            loadProducts(); // 商品マスタ読み込み
         }
 
         async function loadSlip() {
             const sRef = doc(db, "tenants", tenantId, "slips", slipId);
             const sSnap = await getDoc(sRef);
-            if(!sSnap.exists()) { alert("Error"); return; }
+            if(!sSnap.exists()) { alert("Error: Slip not found"); return; }
             slipData = sSnap.data();
 
             document.getElementById('table-title').textContent = `Table: ${slipData.tableId}`;
             document.getElementById('customer-name').textContent = slipData.customerName;
 
-            // 注文取得
             const oSnap = await getDocs(collection(sRef, "orders"));
             currentOrders = [];
             oSnap.forEach(d => currentOrders.push(d.data()));
-
             renderOrders();
             calculateBill();
         }
@@ -225,172 +215,170 @@
             container.innerHTML = "";
             currentOrders.forEach(o => {
                 const sub = o.price * o.quantity;
-                container.innerHTML += `
-                    <div class="order-item">
-                        <div>${o.name}</div>
-                        <div>¥${o.price.toLocaleString()}</div>
-                        <div>x${o.quantity}</div>
-                        <div style="font-weight:bold;">¥${sub.toLocaleString()}</div>
-                    </div>
-                `;
+                container.innerHTML += `<div class="order-item"><div>${o.name}</div><div>¥${o.price.toLocaleString()}</div><div>x${o.quantity}</div><div style="font-weight:bold;">¥${sub.toLocaleString()}</div></div>`;
             });
         }
 
-        // 2. 請求額の計算
+        // 商品リスト読み込み
+        async function loadProducts() {
+            const q = collection(db, "tenants", tenantId, "products");
+            const snap = await getDocs(q);
+            allProducts = [];
+            snap.forEach(doc => allProducts.push({ id: doc.id, ...doc.data() }));
+        }
+
+        // モーダル表示・商品検索
+        window.openAddOrderModal = () => {
+            document.getElementById('add-order-modal').style.display = 'flex';
+            renderProductList("");
+        };
+
+        document.getElementById('prod-search').addEventListener('input', (e) => renderProductList(e.target.value));
+
+        function renderProductList(term) {
+            const container = document.getElementById('prod-list');
+            container.innerHTML = "";
+            const filtered = allProducts.filter(p => p.name.toLowerCase().includes(term.toLowerCase()));
+            
+            filtered.forEach(p => {
+                const div = document.createElement('div');
+                div.className = "prod-option";
+                div.innerHTML = `<span>${p.name}</span><span style="font-weight:bold;">¥${Number(p.price).toLocaleString()}</span>`;
+                div.onclick = () => selectProduct(p, div);
+                container.appendChild(div);
+            });
+        }
+
+        function selectProduct(prod, el) {
+            selectedProduct = prod;
+            document.querySelectorAll('.prod-option').forEach(e => e.classList.remove('selected'));
+            el.classList.add('selected');
+            document.getElementById('selected-prod-name').textContent = prod.name;
+            document.getElementById('do-add-btn').disabled = false;
+        }
+
+        // 注文追加実行
+        window.submitNewOrder = async () => {
+            if(!selectedProduct) return;
+            const qty = Number(document.getElementById('new-order-qty').value);
+            if(qty < 1) return;
+
+            const btn = document.getElementById('do-add-btn');
+            btn.disabled = true; btn.textContent = "処理中...";
+
+            try {
+                const batch = writeBatch(db);
+                const slipRef = doc(db, "tenants", tenantId, "slips", slipId);
+                const newOrderRef = doc(collection(db, "tenants", tenantId, "slips", slipId, "orders"));
+                
+                const lineTotal = selectedProduct.price * qty;
+                const callAdd = selectedProduct.isCallTarget ? lineTotal : 0;
+
+                batch.set(newOrderRef, {
+                    name: selectedProduct.name,
+                    price: Number(selectedProduct.price),
+                    quantity: qty,
+                    productId: selectedProduct.id,
+                    orderedBy: 'admin', // 内勤追加
+                    status: 'served',
+                    createdAt: serverTimestamp(),
+                    isCallTarget: selectedProduct.isCallTarget || false
+                });
+
+                batch.update(slipRef, {
+                    totalAmount: increment(lineTotal),
+                    callBatchAmount: increment(callAdd),
+                    lastUpdated: serverTimestamp()
+                });
+
+                await batch.commit();
+                
+                document.getElementById('add-order-modal').style.display = 'none';
+                btn.textContent = "追加する";
+                loadSlip(); // 再読み込み
+            } catch(e) {
+                console.error(e); alert("追加エラー"); btn.disabled = false;
+            }
+        };
+
+        // 計算ロジック
         function calculateBill() {
             let subtotal = 0;
             currentOrders.forEach(o => subtotal += (o.price * o.quantity));
-
             let serviceFee = Math.floor(subtotal * (config.service / 100));
             let taxable = subtotal + serviceFee;
             let tax = Math.floor(taxable * (config.tax / 100));
             let rawTotal = taxable + tax;
-
-            // 端数処理
             let total = rawTotal;
             if (config.rounding === 'up_10') total = Math.ceil(rawTotal / 10) * 10;
-            else if (config.rounding === 'down_10') total = Math.floor(rawTotal / 10) * 10;
-            else if (config.rounding === 'up_100') total = Math.ceil(rawTotal / 100) * 100;
-            else if (config.rounding === 'down_100') total = Math.floor(rawTotal / 100) * 100;
-
+            
             document.getElementById('calc-subtotal').textContent = `¥${subtotal.toLocaleString()}`;
             document.getElementById('calc-service').textContent = `¥${serviceFee.toLocaleString()}`;
             document.getElementById('calc-tax').textContent = `¥${tax.toLocaleString()}`;
             document.getElementById('calc-rounding').textContent = `¥${total - rawTotal}`;
             document.getElementById('calc-grand-total').textContent = `¥${total.toLocaleString()}`;
-
             calcResult = { subtotal, serviceFee, tax, grandTotal: total };
-            
-            // 再計算トリガー
             updatePaymentCalc();
         }
 
-        // 3. 支払い計算 (レジ機能)
         function updatePaymentCalc() {
             const cash = Number(inputCash.value) || 0;
             const card = Number(inputCard.value) || 0;
             const totalPaid = cash + card;
-            const grandTotal = calcResult.grandTotal;
+            const diff = totalPaid - calcResult.grandTotal;
 
-            const diff = totalPaid - grandTotal;
-
-            // 表示リセット
-            resultChange.style.display = 'none';
-            resultDebt.style.display = 'none';
-            displayCredit.textContent = "¥0";
-            btnCheckout.disabled = false;
+            resultChange.style.display = 'none'; resultDebt.style.display = 'none';
+            displayCredit.textContent = "¥0"; btnCheckout.disabled = false;
 
             if (diff >= 0) {
-                // お釣り発生
                 resultChange.style.display = 'block';
-                valChange.textContent = `¥${diff.toLocaleString()}`;
+                document.getElementById('val-change').textContent = `¥${diff.toLocaleString()}`;
                 btnCheckout.textContent = "会計を確定する";
-                btnCheckout.style.background = "#28a745"; // Green
-                calcResult.change = diff;
-                calcResult.debt = 0;
+                btnCheckout.style.background = "#28a745";
+                calcResult.change = diff; calcResult.debt = 0;
             } else {
-                // 不足 -> 売掛
                 const debt = Math.abs(diff);
                 resultDebt.style.display = 'block';
-                valDebt.textContent = `¥${debt.toLocaleString()}`;
+                document.getElementById('val-debt').textContent = `¥${debt.toLocaleString()}`;
                 displayCredit.textContent = `¥${debt.toLocaleString()}`;
-                
                 btnCheckout.textContent = "売掛を含んで会計確定";
-                btnCheckout.style.background = "#dc3545"; // Red (注意喚起)
-                calcResult.change = 0;
-                calcResult.debt = debt;
-            }
-
-            // 何も入力がない時はボタン無効化などしたければここで制御
-            if(totalPaid === 0 && calcResult.debt === grandTotal) {
-                // 全額売掛もOKとするが、ボタンテキストを変える
-                btnCheckout.textContent = "全額売掛で確定";
+                btnCheckout.style.background = "#dc3545";
+                calcResult.change = 0; calcResult.debt = debt;
             }
         }
 
-        // イベントリスナー
         inputCash.addEventListener('input', updatePaymentCalc);
         inputCard.addEventListener('input', updatePaymentCalc);
 
-        // 4. 会計確定処理
         btnCheckout.onclick = async () => {
+            if(!confirm("会計を確定しますか？")) return;
             const cash = Number(inputCash.value) || 0;
             const card = Number(inputCard.value) || 0;
-            const debt = calcResult.debt;
-            
-            let msg = `請求額: ¥${calcResult.grandTotal.toLocaleString()}\n\n`;
-            msg += `現金: ¥${cash.toLocaleString()}\n`;
-            msg += `カード: ¥${card.toLocaleString()}\n`;
-            if(debt > 0) msg += `売掛: ¥${debt.toLocaleString()} (担当ホスト管理)\n`;
-            else msg += `お釣り: ¥${calcResult.change.toLocaleString()}\n`;
-            
-            msg += `\nこの内容で会計を確定しますか？`;
-
-            if(!confirm(msg)) return;
-
-            btnCheckout.disabled = true;
-            btnCheckout.textContent = "処理中...";
-
             try {
-                const sRef = doc(db, "tenants", tenantId, "slips", slipId);
-                
-                // データ更新
-                await updateDoc(sRef, {
-                    status: 'paid', // 営業上の会計は完了
+                await updateDoc(doc(db, "tenants", tenantId, "slips", slipId), {
+                    status: 'paid',
                     totalAmount: calcResult.grandTotal,
                     paidAt: serverTimestamp(),
-                    
-                    // 支払い詳細を記録
-                    paymentDetails: {
-                        cash: cash,
-                        card: card,
-                        credit: debt, // 売掛金
-                        change: calcResult.change
-                    },
-                    
-                    // 簡易検索用フラグ
-                    hasDebt: debt > 0,
-                    debtAmount: debt
+                    paymentDetails: { cash, card, credit: calcResult.debt, change: calcResult.change },
+                    hasDebt: calcResult.debt > 0,
+                    debtAmount: calcResult.debt
                 });
-
-                alert("会計処理が完了しました！");
-                // 印刷するか聞く？ -> 今回は自動でリロード
-                window.location.href = "dashboard.html";
-
-            } catch(e) {
-                alert("エラー: " + e.message);
-                btnCheckout.disabled = false;
-            }
+                alert("会計完了"); window.location.href = "dashboard.html";
+            } catch(e) { alert("Error: " + e.message); }
         };
 
-        // 5. 印刷
         document.getElementById('btn-receipt').onclick = () => {
-            const cash = Number(inputCash.value) || 0;
-            const card = Number(inputCard.value) || 0;
-            const debt = calcResult.debt;
-            const change = calcResult.change;
-
             document.getElementById('rec-store-name').textContent = tenantInfo.name || "CLUB HOSPOS";
             document.getElementById('rec-date').textContent = new Date().toLocaleString();
             document.getElementById('rec-table').textContent = slipData.tableId;
-            
-            // Items
-            const rItems = document.getElementById('rec-items');
-            rItems.innerHTML = "";
-            currentOrders.forEach(o => {
-                rItems.innerHTML += `<div class="receipt-row"><span>${o.name}</span><span>¥${(o.price * o.quantity).toLocaleString()}</span></div>`;
-            });
-
+            document.getElementById('rec-items').innerHTML = currentOrders.map(o => `<div class="receipt-row"><span>${o.name}</span><span>¥${(o.price * o.quantity).toLocaleString()}</span></div>`).join("");
             document.getElementById('rec-total').textContent = `¥${calcResult.grandTotal.toLocaleString()}`;
-            document.getElementById('rec-cash').textContent = `¥${cash.toLocaleString()}`;
-            document.getElementById('rec-card').textContent = `¥${card.toLocaleString()}`;
-            document.getElementById('rec-debt').textContent = `¥${debt.toLocaleString()}`;
-            document.getElementById('rec-change').textContent = `¥${change.toLocaleString()}`;
-            
+            document.getElementById('rec-cash').textContent = `¥${(Number(inputCash.value)||0).toLocaleString()}`;
+            document.getElementById('rec-card').textContent = `¥${(Number(inputCard.value)||0).toLocaleString()}`;
+            document.getElementById('rec-debt').textContent = `¥${calcResult.debt.toLocaleString()}`;
+            document.getElementById('rec-change').textContent = `¥${calcResult.change.toLocaleString()}`;
             window.print();
         };
-        
-        // 没電機能などは前回と同様なので省略していますが、必要なら追加してください
 
         init();
     </script>

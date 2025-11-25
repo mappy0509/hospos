@@ -7,28 +7,22 @@
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* 共通レイアウト */
+        /* 既存スタイル */
         .dashboard-container { display: flex; min-height: 100vh; }
         .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
         .main-content { flex: 1; padding: 30px; background-color: var(--bg-color); }
         .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
         .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
         .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
-
-        /* フィルタエリア */
         .filter-bar { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); display: flex; gap: 15px; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; }
         .filter-group label { display: block; font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; }
         .filter-input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; }
         .btn-search { padding: 10px 20px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; height: 42px; }
-
-        /* テーブル */
         .table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; white-space: nowrap; }
         th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
         th { background: #f8f9fa; font-weight: bold; color: #666; }
         tr:hover { background: #f8f9fa; cursor: pointer; }
-
-        /* ステータスバッジ */
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
         .badge-active { background: #fff5f5; color: #dc3545; border: 1px solid #f5c6cb; }
         .badge-paid { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -87,14 +81,14 @@
                             <th>日時 (来店)</th>
                             <th>卓番</th>
                             <th>種別</th>
-                            <th>顧客名</th>
+                            <th>担当キャスト</th> <th>顧客名</th>
                             <th>ステータス</th>
                             <th>総額</th>
                             <th>詳細</th>
                         </tr>
                     </thead>
                     <tbody id="slips-list">
-                        <tr><td colspan="7" style="text-align:center; padding:30px;">読み込み中...</td></tr>
+                        <tr><td colspan="8" style="text-align:center; padding:30px;">読み込み中...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -116,7 +110,7 @@
         dateFromInput.valueAsDate = new Date();
 
         async function loadSlips() {
-            listBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;">検索中...</td></tr>';
+            listBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px;">検索中...</td></tr>';
             try {
                 const q = query(
                     collection(db, "tenants", tenantId, "slips"),
@@ -126,7 +120,7 @@
                 const snapshot = await getDocs(q);
                 
                 if (snapshot.empty) {
-                    listBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;">データがありません</td></tr>';
+                    listBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px;">データがありません</td></tr>';
                     return;
                 }
 
@@ -151,19 +145,24 @@
                     if (data.status === 'void') badge = `<span class="badge badge-void">没電</span>`;
 
                     let typeText = "Free";
-                    if (data.visitType === 'shime') typeText = "指名";
-                    else if (data.visitType === 'eda') typeText = "枝";
+                    let castName = "-";
+                    if (data.visitType === 'shime') {
+                        typeText = "指名";
+                        castName = data.primaryCastName || "不明"; // 修正: 名前を表示
+                    } else if (data.visitType === 'eda') {
+                        typeText = "枝";
+                    }
 
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `<td>${dateStr}</td><td style="font-weight:bold;">${data.tableId}</td><td>${typeText}</td><td>${data.customerName || '-'}</td><td>${badge}</td><td class="amount-cell">¥${(data.totalAmount || 0).toLocaleString()}</td><td style="color:var(--primary-color); font-size:0.9rem;"><i class="fas fa-chevron-right"></i></td>`;
+                    tr.innerHTML = `<td>${dateStr}</td><td style="font-weight:bold;">${data.tableId}</td><td>${typeText}</td><td style="color:#007bff; font-weight:bold;">${castName}</td><td>${data.customerName || '-'}</td><td>${badge}</td><td class="amount-cell">¥${(data.totalAmount || 0).toLocaleString()}</td><td style="color:var(--primary-color); font-size:0.9rem;"><i class="fas fa-chevron-right"></i></td>`;
                     tr.onclick = () => { window.location.href = `slip-detail.html?id=${doc.id}`; };
                     listBody.appendChild(tr);
                 });
 
-                if (!hasData) listBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;">条件に一致する伝票はありません</td></tr>';
+                if (!hasData) listBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px;">条件に一致する伝票はありません</td></tr>';
             } catch (error) {
                 console.error(error);
-                listBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">エラー: ${error.message}</td></tr>`;
+                listBody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:red;">エラー: ${error.message}</td></tr>`;
             }
         }
         searchBtn.addEventListener('click', loadSlips);

@@ -1,204 +1,98 @@
 /* assets/css/style.css - Modern Light Theme */
 :root {
-    /* ライトモード用カラーパレット */
-    --bg-color: #f8f9fa;      /* 全体の背景：非常に薄いグレー */
-    --card-bg: #ffffff;       /* カード背景：白 */
-    --text-main: #333333;     /* メイン文字：濃いグレー */
-    --text-sub: #6c757d;      /* サブ文字：中間グレー */
-    
-    /* アクセントカラー：先進的なモダンブルー */
+    --bg-color: #f8f9fa;
+    --card-bg: #ffffff;
+    --text-main: #333333;
+    --text-sub: #6c757d;
     --primary-color: #007bff; 
     --primary-hover: #0056b3;
-
-    /* その他 */
     --error-color: #dc3545;
-    --border-color: #dee2e6;  /* 薄い枠線 */
+    --border-color: #dee2e6;
     --input-bg: #ffffff;
-    --shadow-sm: 0 .125rem .25rem rgba(0,0,0,.075); /* 柔らかい影 */
-    --shadow-lg: 0 1rem 3rem rgba(0,0,0,.175);      /* 大きな影（ログイン画面用） */
+    --shadow-sm: 0 .125rem .25rem rgba(0,0,0,.075);
+    --shadow-lg: 0 1rem 3rem rgba(0,0,0,.175);
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* モダンなシステムフォント優先 */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background-color: var(--bg-color);
     color: var(--text-main);
     margin: 0;
     padding: 0;
-    line-height: 1.6; /* 読みやすく行間を広げる */
+    line-height: 1.6;
 }
 
-/* ログイン画面専用レイアウト */
+/* --- ログイン画面 --- */
 .login-body {
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: #f0f2f5; /* ログイン画面は少しだけ背景を濃くしてカードを目立たせる */
+    background-color: #f0f2f5;
 }
-
-/* ログインカード */
 .login-container {
     background-color: var(--card-bg);
     padding: 40px;
-    border-radius: 12px; /* 少し丸みを帯びた角 */
-    box-shadow: var(--shadow-lg); /* ふんわり浮かぶ影 */
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
     width: 100%;
     max-width: 400px;
     text-align: center;
-    border: none; /* 枠線は削除し影で表現 */
 }
-
-.login-header h1 {
-    color: var(--primary-color); /* アクセントカラーの青 */
-    margin: 0;
-    font-size: 2rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-}
-
-.login-header p {
-    color: var(--text-sub);
-    font-size: 1rem;
-    margin-top: 5px;
-    margin-bottom: 40px;
-    font-weight: 400;
-}
-
-/* フォーム要素 */
-.form-group {
-    margin-bottom: 24px; /* 余白を広めに */
-    text-align: left;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 0.9rem;
-    color: var(--text-main);
-    font-weight: 600;
-}
-
-.form-group label i {
-    color: var(--text-sub); /* アイコンは少し控えめな色に */
-    margin-right: 8px;
-}
-
+.login-header h1 { color: var(--primary-color); margin: 0; font-size: 2rem; font-weight: 700; letter-spacing: 1px; }
+.login-header p { color: var(--text-sub); font-size: 1rem; margin-top: 5px; margin-bottom: 40px; }
+.form-group { margin-bottom: 24px; text-align: left; }
+.form-group label { display: block; margin-bottom: 8px; font-size: 0.9rem; font-weight: 600; }
 .form-group input {
-    width: 100%;
-    padding: 12px 16px; /* パディングを広げて入力しやすく */
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-    background-color: var(--input-bg);
-    color: var(--text-main);
-    font-size: 1rem;
-    box-sizing: border-box;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    width: 100%; padding: 12px 16px; border-radius: 8px;
+    border: 1px solid var(--border-color); background-color: var(--input-bg);
+    font-size: 1rem; box-sizing: border-box;
 }
-
-/* 入力時のフォーカスデザイン */
-.form-group input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); /* 青い光彩を放つ */
-}
-
-/* ボタン */
 .btn-primary {
-    width: 100%;
-    padding: 14px;
-    background-color: var(--primary-color);
-    color: #ffffff;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    margin-top: 10px;
-    box-shadow: var(--shadow-sm); /* ボタンにもわずかな影 */
+    width: 100%; padding: 14px; background-color: var(--primary-color);
+    color: #ffffff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
+    cursor: pointer; transition: background-color 0.2s; margin-top: 10px; box-shadow: var(--shadow-sm);
 }
+.btn-primary:hover { background-color: var(--primary-hover); }
+.btn-primary:disabled { background-color: var(--text-sub); cursor: not-allowed; }
+.error-message { color: var(--error-color); margin-top: 20px; font-size: 0.9rem; min-height: 1.2em; font-weight: 500; }
+.login-footer { margin-top: 40px; font-size: 0.9rem; color: var(--text-sub); border-top: 1px solid var(--border-color); padding-top: 25px; }
+.login-footer a { color: var(--primary-color); text-decoration: none; font-weight: 600; }
 
-.btn-primary:hover {
-    background-color: var(--primary-hover);
-}
-
-.btn-primary:disabled {
-    background-color: var(--text-sub);
-    cursor: not-allowed;
-}
-
-/* エラーメッセージ */
-.error-message {
-    color: var(--error-color);
-    margin-top: 20px;
-    font-size: 0.9rem;
-    min-height: 1.2em;
-    font-weight: 500;
-}
-
-/* フッター */
-.login-footer {
-    margin-top: 40px;
-    font-size: 0.9rem;
-    color: var(--text-sub);
-    border-top: 1px solid var(--border-color);
-    padding-top: 25px;
-}
-
-.login-footer a {
-    color: var(--primary-color);
-    text-decoration: none;
-    font-weight: 600;
-}
-
-.login-footer a:hover {
-    text-decoration: underline;
-}
-
-/* --- Mobile Bottom Navigation (共通) --- */
+/* --- Mobile Bottom Nav (Cast) --- */
 .bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: white;
-    display: flex;
-    justify-content: space-around;
-    padding: 12px 0 15px; /* iPhoneのホームバーなどを考慮して下を少し空ける */
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-    z-index: 1000;
-    border-top: 1px solid #eee;
+    position: fixed; bottom: 0; left: 0; width: 100%; background: white;
+    display: flex; justify-content: space-around; padding: 12px 0 15px;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 1000; border-top: 1px solid #eee;
 }
+.nav-item { text-align: center; color: #adb5bd; text-decoration: none; font-size: 0.7rem; flex: 1; }
+.nav-item i { display: block; font-size: 1.4rem; margin-bottom: 4px; }
+.nav-item.active { color: var(--primary-color); }
+.nav-item.locked { opacity: 0.4; cursor: not-allowed; background-color: #f2f2f2; pointer-events: auto; }
 
-.nav-item {
-    text-align: center;
-    color: #adb5bd; /* 非選択時はグレー */
-    text-decoration: none;
-    font-size: 0.7rem;
-    flex: 1;
-    transition: 0.2s;
+/* --- Admin Responsive & Mobile Layout --- */
+.admin-mobile-header {
+    display: none; /* PCでは非表示 */
+    background: white; padding: 15px 20px; box-shadow: var(--shadow-sm);
+    justify-content: space-between; align-items: center;
+    position: sticky; top: 0; z-index: 100;
 }
+.mobile-menu-btn { background: none; border: none; font-size: 1.5rem; color: var(--text-main); cursor: pointer; }
 
-.nav-item i {
-    display: block;
-    font-size: 1.4rem;
-    margin-bottom: 4px;
-}
-
-.nav-item.active {
-    color: var(--primary-color); /* 選択時は青 */
-}
-
-/* スマホ画面でメニューがコンテンツに被らないようにする余白 */
-/* 必要に応じて各HTMLのbodyタグにも padding-bottom: 80px; を指定していますが、念のため */
-body.mobile-view {
-    padding-bottom: 80px;
-}
-
-/* --- ロック状態のボトムメニュー（共通） --- */
-.nav-item.locked {
-    opacity: 0.4;
-    cursor: not-allowed;
-    background-color: #f2f2f2;
-    pointer-events: auto; /* JSでクリックイベントを拾うためにautoにする */
+@media (max-width: 768px) {
+    .dashboard-container { flex-direction: column; }
+    
+    /* サイドバーをモバイル用に調整 */
+    .sidebar {
+        display: none; /* デフォルト非表示 */
+        width: 100%; position: fixed; top: 60px; left: 0; height: calc(100vh - 60px);
+        background: white; z-index: 99; overflow-y: auto; padding-bottom: 50px;
+    }
+    .sidebar.active { display: flex; }
+    
+    .main-content { padding: 20px; }
+    .admin-mobile-header { display: flex; }
+    
+    /* テーブルグリッド調整 */
+    .tables-grid { grid-template-columns: repeat(2, 1fr) !important; }
 }
