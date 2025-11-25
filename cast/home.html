@@ -6,89 +6,29 @@
     <title>HOSPOS Cast - Home</title>
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
-        /* スマホ・キャスト画面専用スタイル */
-        body {
-            background-color: #f8f9fa;
-            padding-bottom: 80px; /* ボトムナビの分だけ余白 */
-        }
-
-        /* ヘッダー */
-        .mobile-header {
-            background: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
+        /* (既存スタイル) */
+        body { background-color: #f8f9fa; padding-bottom: 80px; }
+        .mobile-header { background: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
         .cast-name { font-weight: bold; font-size: 1.1rem; }
         .shop-name { font-size: 0.8rem; color: var(--text-sub); }
-
-        /* メインコンテンツ */
         .mobile-container { padding: 20px; }
-
-        /* ステータスカード */
-        .status-card {
-            background: white;
-            border-radius: 16px;
-            padding: 30px 20px;
-            text-align: center;
-            box-shadow: var(--shadow-sm);
-            margin-bottom: 20px;
-        }
-        .status-indicator {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: white;
-            position: relative;
-        }
-        /* ステータス色定義 */
+        .status-card { background: white; border-radius: 16px; padding: 30px 20px; text-align: center; box-shadow: var(--shadow-sm); margin-bottom: 20px; }
+        .status-indicator { width: 120px; height: 120px; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; color: white; position: relative; }
         .status-off { background: #e9ecef; color: #adb5bd; border: 4px solid #dee2e6; }
         .status-working { background: #e6f2ff; color: #007bff; border: 4px solid #007bff; box-shadow: 0 0 20px rgba(0,123,255,0.3); }
 
-        /* NFCボタン */
-        .nfc-btn {
-            background: linear-gradient(135deg, #333, #000);
-            color: white;
-            width: 100%;
-            padding: 20px;
-            border-radius: 12px;
-            border: none;
-            font-size: 1.1rem;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            cursor: pointer;
-            transition: transform 0.1s;
-        }
-        .nfc-btn:active { transform: scale(0.98); }
+        .scan-btn { background: linear-gradient(135deg, #333, #000); color: white; width: 100%; padding: 20px; border-radius: 12px; border: none; font-size: 1.1rem; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; transition: transform 0.1s; }
+        .scan-btn:active { transform: scale(0.98); }
 
-        /* お知らせリスト */
-        .news-list {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: var(--shadow-sm);
-        }
-        .news-item {
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-            font-size: 0.9rem;
-        }
+        .news-list { background: white; border-radius: 12px; padding: 15px; box-shadow: var(--shadow-sm); min-height: 50px;}
+        .news-item { padding: 10px 0; border-bottom: 1px solid #eee; font-size: 0.9rem; }
         .news-item:last-child { border-bottom: none; }
+        
+        .scanner-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; flex-direction: column; justify-content: center; align-items: center; }
+        #reader { width: 100%; max-width: 500px; background: black; }
+        .scanner-controls { margin-top: 20px; width: 90%; max-width: 400px; display:flex; gap:10px; justify-content: center; }
     </style>
 </head>
 <body>
@@ -98,180 +38,186 @@
             <div class="shop-name" id="shop-name-display">Loading...</div>
             <div class="cast-name" id="cast-name-display">...</div>
         </div>
-        <div>
-            <i class="fas fa-bell" style="color: var(--text-sub);"></i>
-        </div>
+        <div><i class="fas fa-bell" style="color: var(--text-sub);"></i></div>
     </div>
 
     <div class="mobile-container">
         <div class="status-card">
-            <div id="status-circle" class="status-indicator status-off">
-                退勤中
-            </div>
+            <div id="status-circle" class="status-indicator status-off">退勤中</div>
             <p id="status-text" style="font-size: 0.9rem; color: var(--text-sub);">
-                出勤するにはNFCをタッチしてください
+                出勤するにはQRコードを読み取ってください
             </p>
         </div>
 
-        <button id="nfc-scan-btn" class="nfc-btn">
-            <i class="fas fa-wifi" style="transform: rotate(90deg);"></i> スマホをNFCにかざす
+        <button id="start-scan-btn" class="scan-btn">
+            <i class="fas fa-qrcode"></i> QRコードを読み取る
         </button>
-
         <div id="msg-area" style="text-align:center; margin-top:15px; font-size:0.9rem; min-height:1.5em;"></div>
 
-        <h3 style="font-size:1rem; margin-top:30px; margin-bottom:10px; color:var(--text-sub);">お知らせ</h3>
-        <div class="news-list">
-            <div class="news-item">今日（9/20）はイベント日です！</div>
-            <div class="news-item">締め作業の時間が変更になりました。</div>
+        <h3 style="font-size:1rem; margin-top:30px; margin-bottom:10px; color:var(--text-sub);">本日のスケジュール・お知らせ</h3>
+        <div class="news-list" id="news-container">
+            <div style="text-align:center; color:#ccc; font-size:0.8rem;">読み込み中...</div>
+        </div>
+    </div>
+
+    <div id="qr-modal" class="scanner-modal">
+        <div style="color:white; margin-bottom:20px; font-weight:bold;">店舗のQRコードを映してください</div>
+        <div id="reader"></div>
+        <div class="scanner-controls">
+            <button id="close-scanner" class="btn-primary" style="background:#666; border:none; padding:10px 20px; border-radius:6px; color:white;">閉じる</button>
         </div>
     </div>
 
     <div class="bottom-nav">
-        <a href="home.html" class="nav-item active">
-            <i class="fas fa-home"></i>ホーム
-        </a>
+        <a href="home.html" class="nav-item active"><i class="fas fa-home"></i>ホーム</a>
         <a href="javascript:void(0)" class="nav-item locked" id="nav-order" onclick="checkStatus(event)">
             <i class="fas fa-glass-martini-alt"></i>注文
         </a>
-        <a href="my-customers.html" class="nav-item">
-            <i class="fas fa-address-book"></i>顧客
-        </a>
-        <a href="profile.html" class="nav-item">
-            <i class="fas fa-user"></i>マイページ
-        </a>
+        <a href="my-customers.html" class="nav-item"><i class="fas fa-address-book"></i>顧客</a>
+        <a href="profile.html" class="nav-item"><i class="fas fa-user"></i>マイページ</a>
     </div>
 
     <script type="module">
         import { db, auth } from '../assets/js/firebase-config.js';
-        import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { getBusinessDate, formatDateYMD } from '../assets/js/utils.js';
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         const storedUid = sessionStorage.getItem('hospos_uid');
-        
-        if (!tenantId || !storedUid) {
-            window.location.href = "../index.html";
-        }
+        if (!tenantId || !storedUid) window.location.href = "../index.html";
 
         const statusCircle = document.getElementById('status-circle');
         const statusText = document.getElementById('status-text');
-        const nfcBtn = document.getElementById('nfc-scan-btn');
+        const scanBtn = document.getElementById('start-scan-btn');
         const msgArea = document.getElementById('msg-area');
         const navOrder = document.getElementById('nav-order');
+        const newsContainer = document.getElementById('news-container');
+        
+        const qrModal = document.getElementById('qr-modal');
+        const closeScanBtn = document.getElementById('close-scanner');
 
         let currentUserData = null;
+        let html5QrcodeScanner = null;
+        let cutoffHour = 0;
 
-        // 1. ロック時のクリック制御 (Global)
+        // 1. ロック時のクリック制御
         window.checkStatus = (e) => {
-            // クラスに locked がついている場合は移動させない
-            if (navOrder.classList.contains('locked')) {
-                // href="javascript:void(0)" なので遷移はしないが、念のため
-                alert("⚠️ 先に出勤処理を行ってください");
-            }
+            if (navOrder.classList.contains('locked')) alert("⚠️ 先に出勤処理を行ってください");
         };
 
-        // 2. ユーザー情報の取得
-        async function loadUserData() {
+        // 2. データロード
+        async function loadData() {
             try {
+                // 店舗設定（日付変更線）
+                const shopSnap = await getDoc(doc(db, "tenants", tenantId));
+                if(shopSnap.exists()) {
+                    const data = shopSnap.data();
+                    document.getElementById('shop-name-display').textContent = data.name;
+                    cutoffHour = data.config?.businessDay?.cutoffHour ?? 0;
+                }
+
+                // ユーザー情報
                 const userRef = doc(db, "tenants", tenantId, "users", storedUid);
-                const snap = await getDoc(userRef);
-                
-                if (snap.exists()) {
-                    currentUserData = snap.data();
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                    currentUserData = userSnap.data();
                     document.getElementById('cast-name-display').textContent = currentUserData.name;
                     updateStatusDisplay(currentUserData.currentStatus);
                 }
-                
-                const shopSnap = await getDoc(doc(db, "tenants", tenantId));
-                if(shopSnap.exists()){
-                    document.getElementById('shop-name-display').textContent = shopSnap.data().name;
-                }
-            } catch(e) {
-                console.error(e);
-            }
+
+                loadSchedule();
+            } catch(e) { console.error(e); }
         }
 
-        // 3. ステータス表示とロック解除のロジック
-        function updateStatusDisplay(status) {
-            statusCircle.className = "status-indicator"; // Reset
+        // 3. スケジュール表示
+        async function loadSchedule() {
+            const businessDate = getBusinessDate(new Date(), cutoffHour);
+            const dateStr = formatDateYMD(businessDate);
             
+            const q = query(collection(db, "tenants", tenantId, "events"), where("date", "==", dateStr));
+            const snap = await getDocs(q);
+            
+            newsContainer.innerHTML = "";
+            if(snap.empty) {
+                newsContainer.innerHTML = `<div style="text-align:center; color:#999; font-size:0.8rem;">お知らせはありません</div>`;
+                return;
+            }
+
+            snap.forEach(d => {
+                const ev = d.data();
+                const div = document.createElement('div');
+                div.className = "news-item";
+                
+                let icon = '<i class="fas fa-info-circle" style="color:#007bff; margin-right:5px;"></i>';
+                if(ev.type === 'holiday') icon = '<i class="fas fa-store-slash" style="color:#dc3545; margin-right:5px;"></i>';
+                if(ev.type === 'event') icon = '<i class="fas fa-glass-cheers" style="color:#ffc107; margin-right:5px;"></i>';
+
+                div.innerHTML = `${icon} <span style="font-weight:bold;">${ev.title}</span>`;
+                newsContainer.appendChild(div);
+            });
+        }
+
+        function updateStatusDisplay(status) {
+            statusCircle.className = "status-indicator";
             if (status === 'working') {
-                // 出勤中: ロック解除
                 statusCircle.classList.add('status-working');
                 statusCircle.textContent = "出勤中";
-                statusText.textContent = "お疲れ様です！今日も頑張りましょう";
-                nfcBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> 退勤処理をする (NFCタッチ)';
-                nfcBtn.style.background = "linear-gradient(135deg, #666, #444)";
-                
-                // ボトムナビの更新
+                statusText.textContent = "お疲れ様です！";
+                scanBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> 退勤QRを読み取る';
+                scanBtn.style.background = "linear-gradient(135deg, #666, #444)";
                 navOrder.classList.remove('locked');
                 navOrder.setAttribute('href', 'order.html'); 
-                navOrder.style.color = "#adb5bd"; // 通常色に戻す
+                navOrder.style.color = "#adb5bd";
             } else {
-                // 退勤中: ロック
                 statusCircle.classList.add('status-off');
                 statusCircle.textContent = "退勤中";
                 statusText.textContent = "出勤処理を行ってください";
-                nfcBtn.innerHTML = '<i class="fas fa-wifi" style="transform: rotate(90deg);"></i> 出勤処理をする (NFCタッチ)';
-                nfcBtn.style.background = "linear-gradient(135deg, #333, #000)";
-                
-                // ボトムナビの更新
+                scanBtn.innerHTML = '<i class="fas fa-qrcode"></i> 出勤QRを読み取る';
+                scanBtn.style.background = "linear-gradient(135deg, #333, #000)";
                 navOrder.classList.add('locked');
                 navOrder.setAttribute('href', 'javascript:void(0)');
-                navOrder.style.color = ""; // CSSの .locked ルールに任せるか、明示的に指定
+                navOrder.style.color = "";
             }
         }
 
-        // 4. 出退勤ボタン（擬似NFC）
-        nfcBtn.addEventListener('click', async () => {
-            if(!currentUserData) return;
+        // QRスキャナー制御 (前回同様)
+        scanBtn.addEventListener('click', () => { qrModal.style.display = 'flex'; startScanner(); });
+        function startScanner() {
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, onScanSuccess, onScanFailure)
+            .catch(err => { alert("カメラ起動エラー: HTTPSまたは権限を確認してください"); closeScanner(); });
+        }
+        function closeScanner() {
+            if(html5QrcodeScanner) { html5QrcodeScanner.stop().then(() => { html5QrcodeScanner.clear(); qrModal.style.display = 'none'; }); } else { qrModal.style.display = 'none'; }
+        }
+        closeScanBtn.addEventListener('click', closeScanner);
 
-            nfcBtn.disabled = true;
-            msgArea.textContent = "読み取り中...";
-
-            // 連打防止 (1分)
-            const lastTouchKey = `last_nfc_touch_${storedUid}`;
-            const lastTouchTime = localStorage.getItem(lastTouchKey);
-            const now = Date.now();
-
-            if (lastTouchTime && (now - parseInt(lastTouchTime)) < 60000) {
-                msgArea.style.color = "red";
-                msgArea.textContent = "⚠️ エラー: 直近の操作から1分経っていません。";
-                nfcBtn.disabled = false;
-                return;
-            }
-            localStorage.setItem(lastTouchKey, now.toString());
-
+        async function onScanSuccess(decodedText, decodedResult) {
+            if(html5QrcodeScanner) { await html5QrcodeScanner.stop(); html5QrcodeScanner.clear(); qrModal.style.display = 'none'; }
+            msgArea.style.color = "#007bff"; msgArea.textContent = "認証中...";
             try {
-                const userRef = doc(db, "tenants", tenantId, "users", storedUid);
-                const newStatus = currentUserData.currentStatus === 'working' ? 'off' : 'working';
-                const type = newStatus === 'working' ? 'in' : 'out';
+                const sysRef = doc(db, "tenants", tenantId, "system", "qr");
+                const sysSnap = await getDoc(sysRef);
+                if(!sysSnap.exists()) throw new Error("QRシステムエラー");
+                if (decodedText !== sysSnap.data().token) throw new Error("QRコードが無効です");
+                await executeAttendance();
+            } catch(e) { msgArea.style.color = "red"; msgArea.textContent = e.message; setTimeout(() => msgArea.textContent = "", 4000); }
+        }
+        function onScanFailure(error) {}
 
-                await updateDoc(userRef, { currentStatus: newStatus });
-                await addDoc(collection(db, "tenants", tenantId, "attendance"), {
-                    userId: storedUid,
-                    userName: currentUserData.name,
-                    type: type,
-                    timestamp: serverTimestamp()
-                });
+        async function executeAttendance() {
+            if(!currentUserData) return;
+            const userRef = doc(db, "tenants", tenantId, "users", storedUid);
+            const newStatus = currentUserData.currentStatus === 'working' ? 'off' : 'working';
+            const type = newStatus === 'working' ? 'in' : 'out';
+            await updateDoc(userRef, { currentStatus: newStatus });
+            await addDoc(collection(db, "tenants", tenantId, "attendance"), { userId: storedUid, userName: currentUserData.name, type: type, timestamp: serverTimestamp() });
+            currentUserData.currentStatus = newStatus; updateStatusDisplay(newStatus);
+            msgArea.style.color = "green"; msgArea.textContent = type === 'in' ? "出勤しました！" : "退勤しました。";
+            setTimeout(() => msgArea.textContent = "", 3000);
+        }
 
-                currentUserData.currentStatus = newStatus;
-                updateStatusDisplay(newStatus);
-
-                msgArea.style.color = "green";
-                msgArea.textContent = type === 'in' ? "出勤しました！" : "退勤しました。";
-
-            } catch (error) {
-                console.error(error);
-                msgArea.style.color = "red";
-                msgArea.textContent = "エラーが発生しました";
-            } finally {
-                nfcBtn.disabled = false;
-                setTimeout(() => { msgArea.textContent = ""; }, 3000);
-            }
-        });
-
-        loadUserData();
-
+        loadData();
     </script>
 </body>
 </html>

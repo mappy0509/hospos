@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOSPOS - スケジュール管理</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 共通レイアウト */
+        .dashboard-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
+        .main-content { flex: 1; padding: 30px; background-color: var(--bg-color); }
+        .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
+        .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
+        .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
+
+        .schedule-controls {
+            background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm);
+            margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .month-nav { font-size: 1.5rem; font-weight: bold; display: flex; align-items: center; gap: 20px; }
+        .nav-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #666; }
+        
+        .event-list { display: flex; flex-direction: column; gap: 10px; }
+        .event-card {
+            background: white; padding: 15px; border-radius: 8px; box-shadow: var(--shadow-sm);
+            display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #ccc;
+        }
+        .type-holiday { border-left-color: #dc3545; background: #fff5f5; }
+        .type-event { border-left-color: #28a745; background: #f0fff4; }
+        .type-info { border-left-color: #007bff; background: #e6f2ff; }
+
+        .event-date { font-weight: bold; font-size: 1.1rem; width: 100px; }
+        .event-content { flex: 1; }
+        .event-title { font-weight: bold; }
+        .event-tag { font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; color: white; margin-left: 10px; }
+
+        .tag-holiday { background: #dc3545; }
+        .tag-event { background: #28a745; }
+
+        /* モーダル */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; box-shadow: var(--shadow-lg); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .input-box { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        .btn-action { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; color: white; font-weight: bold; }
+        .btn-primary { background: var(--primary-color); }
+        .btn-auto { background: #6f42c1; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+            <nav>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
+                <a href="schedule.html" class="menu-item active"><i class="fas fa-calendar-alt"></i> スケジュール</a>
+                <a href="slips.html" class="menu-item"><i class="fas fa-file-invoice-dollar"></i> 伝票一覧</a>
+                <a href="call-management.html" class="menu-item"><i class="fas fa-music"></i> コール管理</a>
+                <a href="shokai-control.html" class="menu-item"><i class="fas fa-users"></i> 初回・付け回し</a>
+                <a href="products.html" class="menu-item"><i class="fas fa-wine-bottle"></i> 商品管理</a>
+                <a href="inventory.html" class="menu-item"><i class="fas fa-boxes"></i> 在庫管理</a>
+                <a href="cast-list.html" class="menu-item"><i class="fas fa-user-tie"></i> キャスト管理</a>
+                <a href="attendance.html" class="menu-item"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="customers.html" class="menu-item"><i class="fas fa-address-book"></i> 顧客管理</a>
+                <a href="sales-analysis.html" class="menu-item"><i class="fas fa-chart-line"></i> 売上分析</a>
+                <a href="ranking.html" class="menu-item"><i class="fas fa-trophy"></i> ランキング</a>
+                <a href="daily-report.html" class="menu-item"><i class="fas fa-file-alt"></i> 日報・ログ</a>
+                <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i> 店舗設定</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2 style="margin-bottom: 20px;"><i class="fas fa-calendar-alt"></i> スケジュール・イベント管理</h2>
+
+            <div class="schedule-controls">
+                <div class="month-nav">
+                    <button class="nav-btn" onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+                    <span id="current-month">Loading...</span>
+                    <button class="nav-btn" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-action btn-auto" onclick="autoFillHolidays()">
+                        <i class="fas fa-magic"></i> 定休日を自動反映
+                    </button>
+                    <button class="btn-action btn-primary" onclick="openModal()">
+                        <i class="fas fa-plus"></i> イベント追加
+                    </button>
+                </div>
+            </div>
+
+            <div id="event-list" class="event-list">
+                <div style="text-align:center; padding:30px;">読み込み中...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="event-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title">イベント登録</h3>
+            <form id="event-form">
+                <input type="hidden" id="event-id">
+                <div class="form-group">
+                    <label>日付</label>
+                    <input type="date" id="event-date" class="input-box" required>
+                </div>
+                <div class="form-group">
+                    <label>種類</label>
+                    <select id="event-type" class="input-box">
+                        <option value="event">イベント (営業)</option>
+                        <option value="holiday">定休日・休業</option>
+                        <option value="info">お知らせ</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>タイトル</label>
+                    <input type="text" id="event-title" class="input-box" placeholder="例: バースデーイベント" required>
+                </div>
+                
+                <div style="display:flex; justify-content:space-between; margin-top:20px;">
+                    <button type="button" id="delete-btn" class="btn-action" style="background:#dc3545; display:none;">削除</button>
+                    <div style="display:flex; gap:10px; margin-left:auto;">
+                        <button type="button" class="btn-action" style="background:#ccc;" onclick="closeModal()">キャンセル</button>
+                        <button type="submit" class="btn-action btn-primary">保存</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from '../assets/js/firebase-config.js';
+        import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { formatDateYMD } from '../assets/js/utils.js';
+
+        const tenantId = sessionStorage.getItem('hospos_tenantId');
+        if (!tenantId) window.location.href = "../index.html";
+
+        const listContainer = document.getElementById('event-list');
+        const modal = document.getElementById('event-modal');
+        const form = document.getElementById('event-form');
+        const deleteBtn = document.getElementById('delete-btn');
+        const monthLabel = document.getElementById('current-month');
+
+        let displayDate = new Date();
+        displayDate.setDate(1); // 常に1日を保持
+
+        let tenantConfig = null;
+
+        // 初期化
+        async function init() {
+            // 店舗設定（定休日設定）を取得しておく
+            const snap = await getDoc(doc(db, "tenants", tenantId));
+            if(snap.exists()) tenantConfig = snap.data().config;
+            renderSchedule();
+        }
+
+        // 月移動
+        window.changeMonth = (diff) => {
+            displayDate.setMonth(displayDate.getMonth() + diff);
+            renderSchedule();
+        };
+
+        // スケジュール描画
+        async function renderSchedule() {
+            const year = displayDate.getFullYear();
+            const month = displayDate.getMonth() + 1;
+            monthLabel.textContent = `${year}年 ${month}月`;
+
+            // 月初と月末の文字列 (YYYY-MM-DD)
+            const startDate = formatDateYMD(new Date(year, month - 1, 1));
+            const endDate = formatDateYMD(new Date(year, month, 0));
+
+            // Firestoreから範囲検索 (文字列比較でOK)
+            const q = query(
+                collection(db, "tenants", tenantId, "events"),
+                where("date", ">=", startDate),
+                where("date", "<=", endDate)
+            );
+
+            const snap = await getDocs(q);
+            const events = [];
+            snap.forEach(d => events.push({ id: d.id, ...d.data() }));
+
+            // 日付順にソート
+            events.sort((a,b) => a.date.localeCompare(b.date));
+
+            listContainer.innerHTML = "";
+            if(events.length === 0) {
+                listContainer.innerHTML = `<div style="text-align:center; padding:30px; color:#aaa;">予定はありません</div>`;
+                return;
+            }
+
+            events.forEach(ev => {
+                const dateObj = new Date(ev.date);
+                const dayStr = dateObj.getDate() + "日 (" + ["日","月","火","水","木","金","土"][dateObj.getDay()] + ")";
+                
+                let typeClass = "type-event";
+                let typeLabel = "イベント";
+                let tagClass = "tag-event";
+
+                if(ev.type === 'holiday') {
+                    typeClass = "type-holiday";
+                    typeLabel = "定休日";
+                    tagClass = "tag-holiday";
+                }
+
+                const div = document.createElement('div');
+                div.className = `event-card ${typeClass}`;
+                div.innerHTML = `
+                    <div class="event-date">${dayStr}</div>
+                    <div class="event-content">
+                        <span class="event-title">${ev.title}</span>
+                        <span class="event-tag ${tagClass}">${typeLabel}</span>
+                    </div>
+                    <button onclick="editEvent('${ev.id}')" style="border:none; background:none; cursor:pointer; font-size:1.2rem; color:#666;">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                `;
+                listContainer.appendChild(div);
+            });
+        }
+
+        // 定休日自動反映ロジック
+        window.autoFillHolidays = async () => {
+            if(!tenantConfig || !tenantConfig.businessDay || !tenantConfig.businessDay.holidays) {
+                alert("店舗設定で定休日が設定されていません");
+                return;
+            }
+
+            const holidays = tenantConfig.businessDay.holidays; // [0, 6] etc.
+            if(holidays.length === 0) {
+                alert("定休日の曜日が選択されていません");
+                return;
+            }
+
+            if(!confirm(`${displayDate.getMonth()+1}月の定休日を一括登録しますか？\n（既に登録済みの日は重複しません）`)) return;
+
+            const year = displayDate.getFullYear();
+            const month = displayDate.getMonth(); // 0-indexed
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            const batch = writeBatch(db);
+            let count = 0;
+
+            // 既存の予定を取得して重複チェック
+            const startStr = formatDateYMD(new Date(year, month, 1));
+            const endStr = formatDateYMD(new Date(year, month, daysInMonth));
+            const q = query(collection(db, "tenants", tenantId, "events"), where("date", ">=", startStr), where("date", "<=", endStr));
+            const existingSnap = await getDocs(q);
+            const existingDates = new Set();
+            existingSnap.forEach(d => existingDates.add(d.data().date));
+
+            for(let d=1; d<=daysInMonth; d++) {
+                const targetDate = new Date(year, month, d);
+                const dayOfWeek = targetDate.getDay(); // 0=Sun
+
+                if(holidays.includes(dayOfWeek)) {
+                    const dateStr = formatDateYMD(targetDate);
+                    // 重複なければ登録
+                    if(!existingDates.has(dateStr)) {
+                        const newRef = doc(collection(db, "tenants", tenantId, "events"));
+                        batch.set(newRef, {
+                            date: dateStr,
+                            title: "定休日",
+                            type: "holiday"
+                        });
+                        count++;
+                    }
+                }
+            }
+
+            if(count > 0) {
+                await batch.commit();
+                alert(`${count}件の定休日を登録しました`);
+                renderSchedule();
+            } else {
+                alert("追加する定休日はありませんでした");
+            }
+        };
+
+        // モーダル操作
+        window.openModal = () => {
+            form.reset();
+            document.getElementById('event-id').value = "";
+            document.getElementById('delete-btn').style.display = 'none';
+            document.getElementById('modal-title').textContent = "イベント登録";
+            
+            // デフォルト日付
+            const d = new Date();
+            document.getElementById('event-date').value = formatDateYMD(d);
+            
+            modal.style.display = 'flex';
+        };
+
+        window.editEvent = async (id) => {
+            const ref = doc(db, "tenants", tenantId, "events", id);
+            const snap = await getDoc(ref);
+            if(!snap.exists()) return;
+            const data = snap.data();
+
+            document.getElementById('event-id').value = id;
+            document.getElementById('event-date').value = data.date;
+            document.getElementById('event-title').value = data.title;
+            document.getElementById('event-type').value = data.type;
+            
+            document.getElementById('delete-btn').style.display = 'block';
+            document.getElementById('modal-title').textContent = "イベント編集";
+            modal.style.display = 'flex';
+        };
+
+        window.closeModal = () => modal.style.display = 'none';
+
+        // 削除
+        document.getElementById('delete-btn').onclick = async () => {
+            const id = document.getElementById('event-id').value;
+            if(!confirm("削除しますか？")) return;
+            await deleteDoc(doc(db, "tenants", tenantId, "events", id));
+            closeModal();
+            renderSchedule();
+        };
+
+        // 保存
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('event-id').value;
+            const data = {
+                date: document.getElementById('event-date').value,
+                title: document.getElementById('event-title').value,
+                type: document.getElementById('event-type').value
+            };
+
+            if(id) {
+                await updateDoc(doc(db, "tenants", tenantId, "events", id), data);
+            } else {
+                await addDoc(collection(db, "tenants", tenantId, "events"), data);
+            }
+            closeModal();
+            renderSchedule();
+        });
+
+        init();
+    </script>
+</body>
+</html>

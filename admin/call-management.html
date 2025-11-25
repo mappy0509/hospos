@@ -11,25 +11,20 @@
         .dashboard-container { display: flex; min-height: 100vh; }
         .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
         .main-content { flex: 1; padding: 40px; background-color: var(--bg-color); }
-        
         .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
         .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
         .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
 
-        /* カードスタイル */
         .queue-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
         .call-card { background: white; border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); border-left: 8px solid #ccc; position: relative; animation: popIn 0.5s ease-out; }
         @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-
         .table-badge { background: #333; color: white; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.9rem; display: inline-block; margin-bottom: 10px; }
         .call-amount { font-size: 1.8rem; font-weight: bold; margin: 10px 0; }
         .call-grade { font-weight: bold; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; }
-        
         .action-area { margin-top: 15px; display: flex; gap: 10px; }
         .btn-action { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; }
         .btn-setup { background: var(--primary-color); }
         
-        /* モーダル */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; max-width: 90%; box-shadow: var(--shadow-lg); }
         .select-group { margin-bottom: 20px; }
@@ -45,6 +40,7 @@
             <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
             <nav>
                 <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
+                <a href="schedule.html" class="menu-item"><i class="fas fa-calendar-alt"></i> スケジュール</a>
                 <a href="slips.html" class="menu-item"><i class="fas fa-file-invoice-dollar"></i> 伝票一覧</a>
                 <a href="call-management.html" class="menu-item active"><i class="fas fa-music"></i> コール管理</a>
                 <a href="shokai-control.html" class="menu-item"><i class="fas fa-users"></i> 初回・付け回し</a>
@@ -52,6 +48,7 @@
                 <a href="inventory.html" class="menu-item"><i class="fas fa-boxes"></i> 在庫管理</a>
                 <a href="cast-list.html" class="menu-item"><i class="fas fa-user-tie"></i> キャスト管理</a>
                 <a href="attendance.html" class="menu-item"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="salary.html" class="menu-item"><i class="fas fa-money-bill-wave"></i> 給与管理</a>
                 <a href="customers.html" class="menu-item"><i class="fas fa-address-book"></i> 顧客管理</a>
                 <a href="sales-analysis.html" class="menu-item"><i class="fas fa-chart-line"></i> 売上分析</a>
                 <a href="ranking.html" class="menu-item"><i class="fas fa-trophy"></i> ランキング</a>
@@ -63,7 +60,6 @@
         <div class="main-content">
             <h2><i class="fas fa-music"></i> シャンパンコール待機列</h2>
             <p style="color: var(--text-sub);">未完了のコール一覧です。店舗設定に基づいてグレードが表示されます。</p>
-            
             <div id="queue-container" class="queue-grid">
                 <div class="empty-state">読み込み中...</div>
             </div>
@@ -74,27 +70,20 @@
         <div class="modal-content">
             <h3>コール実施設定</h3>
             <p id="modal-info" style="margin-bottom:20px; color: var(--text-sub);"></p>
-
             <div class="select-group">
                 <label>楽曲選択 (設定されたリスト)</label>
                 <select id="music-select"></select>
             </div>
-
             <div style="display: flex; gap: 15px;">
                 <div class="select-group" style="flex: 1;">
                     <label>メインマイク担当</label>
-                    <select id="mic-main-select">
-                        <option value="">選択してください</option>
-                    </select>
+                    <select id="mic-main-select"><option value="">選択してください</option></select>
                 </div>
                 <div class="select-group" style="flex: 1;">
                     <label>サブマイク担当</label>
-                    <select id="mic-sub-select">
-                        <option value="">なし</option>
-                    </select>
+                    <select id="mic-sub-select"><option value="">なし</option></select>
                 </div>
             </div>
-
             <div style="display:flex; gap:10px; margin-top:30px;">
                 <button id="do-complete-btn" class="btn-primary">コール完了にする</button>
                 <button id="close-modal" class="btn-primary" style="background:#6c757d;">閉じる</button>
@@ -118,142 +107,88 @@
 
         let currentSlipId = null;
         let castList = [];
-        let callGrades = []; // 店舗設定から読み込んだグレードリスト
+        let callGrades = []; 
 
-        // 1. 店舗設定(グレードリスト)をロード
         async function loadSettings() {
             try {
                 const snap = await getDoc(doc(db, "tenants", tenantId));
                 if(snap.exists()) {
-                    // 設定を取得し、金額が高い順にソートしておく（判定ロジックのため）
                     const loadedGrades = snap.data().config?.callGrades || [];
                     callGrades = loadedGrades.sort((a, b) => b.threshold - a.threshold);
                 }
-                console.log("Call Grades Loaded:", callGrades);
-                
                 loadCast();
                 startQueueListener();
-            } catch(e) {
-                console.error(e);
-            }
+            } catch(e) { console.error(e); }
         }
 
-        // 2. キャスト一覧取得
         async function loadCast() {
             const q = query(collection(db, "tenants", tenantId, "users"), where("role", "==", "cast"));
             const snap = await getDocs(q);
             castList = [];
-            snap.forEach(doc => {
-                castList.push({ id: doc.id, name: doc.data().name });
-            });
+            snap.forEach(doc => { castList.push({ id: doc.id, name: doc.data().name }); });
             updateMicSelects();
         }
 
         function updateMicSelects() {
-            const opts = '<option value="">選択してください</option>' + 
-                         castList.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
-            const subOpts = '<option value="">なし</option>' + 
-                            castList.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+            const opts = '<option value="">選択してください</option>' + castList.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+            const subOpts = '<option value="">なし</option>' + castList.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
             micMainSelect.innerHTML = opts;
             micSubSelect.innerHTML = subOpts;
         }
 
-        // 3. リアルタイム監視
         function startQueueListener() {
             const q = query(collection(db, "tenants", tenantId, "slips"), where("callBatchAmount", ">", 0));
-
             onSnapshot(q, (snapshot) => {
                 queueContainer.innerHTML = "";
-                if (snapshot.empty) {
-                    queueContainer.innerHTML = `<div class="empty-state">現在待機中のコールはありません</div>`;
-                    return;
-                }
-
+                if (snapshot.empty) { queueContainer.innerHTML = `<div class="empty-state">現在待機中のコールはありません</div>`; return; }
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     const amount = data.callBatchAmount;
-                    const gradeInfo = determineGrade(amount); // ★動的判定
-
-                    // 色の設定 (設定がない場合はグレー)
+                    const gradeInfo = determineGrade(amount);
                     const borderColor = gradeInfo ? gradeInfo.color : "#ccc";
                     const gradeName = gradeInfo ? gradeInfo.name : "Micro Call";
                     const textColor = gradeInfo ? gradeInfo.color : "#666";
 
                     const card = document.createElement('div');
                     card.className = `call-card`;
-                    card.style.borderLeftColor = borderColor; // JSで直接色指定
-                    
-                    card.innerHTML = `
-                        <div class="table-badge">${data.tableId}</div>
-                        <div style="font-size:0.9rem; color:#666;">担当: ${data.customerName || 'Unknown'}</div>
-                        <div class="call-amount">¥${amount.toLocaleString()}</div>
-                        <div class="call-grade" style="color:${textColor}">${gradeName}</div>
-                        <div style="font-size:0.8rem;">※未消化分のみ</div>
-                        <div class="action-area">
-                            <button class="btn-action btn-setup" onclick="openCallModal('${doc.id}', '${data.tableId}', ${amount})">
-                                <i class="fas fa-microphone-alt"></i> 対応開始
-                            </button>
-                        </div>
-                    `;
+                    card.style.borderLeftColor = borderColor;
+                    card.innerHTML = `<div class="table-badge">${data.tableId}</div><div style="font-size:0.9rem; color:#666;">担当: ${data.customerName || 'Unknown'}</div><div class="call-amount">¥${amount.toLocaleString()}</div><div class="call-grade" style="color:${textColor}">${gradeName}</div><div style="font-size:0.8rem;">※未消化分のみ</div><div class="action-area"><button class="btn-action btn-setup" onclick="openCallModal('${doc.id}', '${data.tableId}', ${amount})"><i class="fas fa-microphone-alt"></i> 対応開始</button></div>`;
                     queueContainer.appendChild(card);
                 });
             });
         }
 
-        // 4. 動的グレード判定ロジック
-        // ソート済みの配列を上から順に見て、最初に超えたものを返す
         function determineGrade(amount) {
-            for (const grade of callGrades) {
-                if (amount >= grade.threshold) {
-                    return grade;
-                }
-            }
-            return null; // どのグレードにも達していない
+            for (const grade of callGrades) { if (amount >= grade.threshold) return grade; }
+            return null;
         }
 
-        // 5. モーダル制御
         window.openCallModal = (slipId, tableId, amount) => {
             currentSlipId = slipId;
             const grade = determineGrade(amount);
             const gradeName = grade ? grade.name : "設定なし";
-            
             modalInfo.textContent = `Table: ${tableId} / 金額: ¥${amount.toLocaleString()} (${gradeName})`;
-            
-            // 曲リストの生成 (カンマ区切りの文字列を配列化)
             let songOptions = "";
             if (grade && grade.songs) {
                 const songs = grade.songs.split(',').map(s => s.trim());
                 songOptions = songs.map(s => `<option>${s}</option>`).join("");
-            } else {
-                songOptions = "<option>汎用BGM</option>";
-            }
+            } else { songOptions = "<option>汎用BGM</option>"; }
             musicSelect.innerHTML = songOptions;
-
-            micMainSelect.value = "";
-            micSubSelect.value = "";
+            micMainSelect.value = ""; micSubSelect.value = "";
             modal.style.display = 'flex';
         };
 
         document.getElementById('close-modal').onclick = () => modal.style.display = 'none';
-
         document.getElementById('do-complete-btn').onclick = async () => {
             if (!currentSlipId) return;
             const btn = document.getElementById('do-complete-btn');
             btn.disabled = true; btn.textContent = "処理中...";
-
             try {
-                await updateDoc(doc(db, "tenants", tenantId, "slips", currentSlipId), {
-                    callBatchAmount: 0
-                });
+                await updateDoc(doc(db, "tenants", tenantId, "slips", currentSlipId), { callBatchAmount: 0 });
                 modal.style.display = 'none';
-            } catch (error) {
-                console.error(error);
-                alert("エラーが発生しました");
-            } finally {
-                btn.disabled = false; btn.textContent = "コール完了にする";
-            }
+            } catch (error) { console.error(error); alert("エラーが発生しました"); } 
+            finally { btn.disabled = false; btn.textContent = "コール完了にする"; }
         };
-
         loadSettings();
     </script>
 </body>

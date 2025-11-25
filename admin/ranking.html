@@ -7,69 +7,37 @@
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* 共通レイアウト */
         .dashboard-container { display: flex; min-height: 100vh; }
         .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
         .main-content { flex: 1; padding: 30px; background-color: var(--bg-color); }
-        
         .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
         .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
         .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
 
-        /* ランキング専用スタイル */
-        .rank-controls {
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
-            background: white; padding: 15px; border-radius: 12px; box-shadow: var(--shadow-sm);
-        }
+        .rank-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px; border-radius: 12px; box-shadow: var(--shadow-sm); }
         .period-tabs { display: flex; gap: 10px; }
-        .p-btn {
-            padding: 8px 20px; border-radius: 20px; border: 1px solid #ddd; background: #f8f9fa;
-            cursor: pointer; font-weight: bold; color: #666; transition: 0.2s;
-        }
+        .p-btn { padding: 8px 20px; border-radius: 20px; border: 1px solid #ddd; background: #f8f9fa; cursor: pointer; font-weight: bold; color: #666; transition: 0.2s; }
         .p-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
-
         .type-switch { display: flex; gap: 5px; background: #eee; padding: 4px; border-radius: 8px; }
-        .t-btn {
-            padding: 6px 15px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.9rem;
-        }
+        .t-btn { padding: 6px 15px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.9rem; }
         .t-btn.active { background: white; font-weight: bold; shadow: 0 1px 3px rgba(0,0,0,0.1); }
-
-        /* ランキングリスト */
-        .ranking-list {
-            display: flex; flex-direction: column; gap: 15px;
-        }
-        .rank-card {
-            background: white; padding: 15px 20px; border-radius: 12px; box-shadow: var(--shadow-sm);
-            display: flex; align-items: center; justify-content: space-between;
-            transition: transform 0.2s;
-        }
+        .ranking-list { display: flex; flex-direction: column; gap: 15px; }
+        .rank-card { background: white; padding: 15px 20px; border-radius: 12px; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: space-between; transition: transform 0.2s; }
         .rank-card:hover { transform: scale(1.01); }
-
-        .rank-pos {
-            font-size: 1.5rem; font-weight: bold; width: 50px; text-align: center; color: #999;
-        }
-        /* 上位3名の装飾 */
-        .rank-1 .rank-pos { color: #d4af37; text-shadow: 0 2px 4px rgba(212,175,55,0.3); font-size: 2rem; } /* Gold */
-        .rank-2 .rank-pos { color: #a9a9a9; font-size: 1.8rem; } /* Silver */
-        .rank-3 .rank-pos { color: #cd7f32; font-size: 1.6rem; } /* Bronze */
-
+        .rank-pos { font-size: 1.5rem; font-weight: bold; width: 50px; text-align: center; color: #999; }
+        .rank-1 .rank-pos { color: #d4af37; text-shadow: 0 2px 4px rgba(212,175,55,0.3); font-size: 2rem; }
+        .rank-2 .rank-pos { color: #a9a9a9; font-size: 1.8rem; }
+        .rank-3 .rank-pos { color: #cd7f32; font-size: 1.6rem; }
         .cast-info { flex: 1; margin-left: 20px; }
         .cast-name { font-size: 1.1rem; font-weight: bold; margin-bottom: 5px; }
-        
-        /* 棒グラフバー */
-        .bar-container {
-            height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; width: 100%; max-width: 300px;
-        }
+        .bar-container { height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; width: 100%; max-width: 300px; }
         .bar-fill { height: 100%; background: var(--primary-color); width: 0%; transition: width 1s; border-radius: 4px; }
         .rank-1 .bar-fill { background: linear-gradient(90deg, #d4af37, #f6e27a); }
-
         .score-box { text-align: right; min-width: 120px; }
         .score-val { font-size: 1.3rem; font-weight: bold; color: var(--text-main); }
         .score-unit { font-size: 0.8rem; color: #666; }
-
         .crown-icon { display: none; margin-right: 5px; }
         .rank-1 .crown-icon { display: inline; }
-
     </style>
 </head>
 <body>
@@ -79,6 +47,7 @@
             <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
             <nav>
                 <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
+                <a href="schedule.html" class="menu-item"><i class="fas fa-calendar-alt"></i> スケジュール</a>
                 <a href="slips.html" class="menu-item"><i class="fas fa-file-invoice-dollar"></i> 伝票一覧</a>
                 <a href="call-management.html" class="menu-item"><i class="fas fa-music"></i> コール管理</a>
                 <a href="shokai-control.html" class="menu-item"><i class="fas fa-users"></i> 初回・付け回し</a>
@@ -86,6 +55,7 @@
                 <a href="inventory.html" class="menu-item"><i class="fas fa-boxes"></i> 在庫管理</a>
                 <a href="cast-list.html" class="menu-item"><i class="fas fa-user-tie"></i> キャスト管理</a>
                 <a href="attendance.html" class="menu-item"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="salary.html" class="menu-item"><i class="fas fa-money-bill-wave"></i> 給与管理</a>
                 <a href="customers.html" class="menu-item"><i class="fas fa-address-book"></i> 顧客管理</a>
                 <a href="sales-analysis.html" class="menu-item"><i class="fas fa-chart-line"></i> 売上分析</a>
                 <a href="ranking.html" class="menu-item active"><i class="fas fa-trophy"></i> ランキング</a>
@@ -96,14 +66,12 @@
 
         <div class="main-content">
             <h2 style="margin-bottom: 20px;"><i class="fas fa-trophy"></i> キャストランキング</h2>
-            
             <div class="rank-controls">
                 <div class="period-tabs">
                     <button class="p-btn active" onclick="setPeriod('today')">今日</button>
                     <button class="p-btn" onclick="setPeriod('week')">今週</button>
                     <button class="p-btn" onclick="setPeriod('month')">今月</button>
                 </div>
-                
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span id="range-label" style="font-weight:bold; color:#666; font-size:0.9rem;"></span>
                     <div class="type-switch">
@@ -112,10 +80,7 @@
                     </div>
                 </div>
             </div>
-
-            <div id="ranking-container" class="ranking-list">
-                <div style="text-align:center; padding:40px; color:#aaa;">データ集計中...</div>
-            </div>
+            <div id="ranking-container" class="ranking-list"><div style="text-align:center; padding:40px; color:#aaa;">データ集計中...</div></div>
         </div>
     </div>
 
@@ -127,159 +92,63 @@
         if (!tenantId) window.location.href = "../index.html";
 
         let currentPeriod = 'today';
-        let currentType = 'sales'; // 'sales' or 'count'
-        let casts = {}; // { uid: { name: "..." } }
+        let currentType = 'sales';
+        let casts = {};
         let slips = [];
 
-        // 1. キャスト一覧取得
         async function loadCasts() {
             const q = query(collection(db, "tenants", tenantId, "users"), where("role", "==", "cast"));
             const snap = await getDocs(q);
-            snap.forEach(doc => {
-                casts[doc.id] = { name: doc.data().name, sales: 0, count: 0 };
-            });
+            snap.forEach(doc => { casts[doc.id] = { name: doc.data().name, sales: 0, count: 0 }; });
             startRankingListener();
         }
 
-        // 2. 伝票監視 (リアルタイム)
         function startRankingListener() {
-            // インデックス回避のため、全Active/Paidを取得してJSフィルタ
-            // 本番では日付範囲をwhereで絞るが、今回はシンプル実装
             const q = query(collection(db, "tenants", tenantId, "slips"));
-
             onSnapshot(q, (snapshot) => {
                 slips = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    // void(没電)以外を集計対象にする
-                    if (data.status !== 'void') {
-                        slips.push(data);
-                    }
-                });
+                snapshot.forEach(doc => { const data = doc.data(); if (data.status !== 'void') slips.push(data); });
                 calcRanking();
             });
         }
 
-        // 3. 集計ロジック
         function calcRanking() {
-            // キャストのスコア初期化
-            Object.keys(casts).forEach(uid => {
-                casts[uid].sales = 0;
-                casts[uid].count = 0;
-            });
-
-            const now = new Date();
-            let startDate = new Date();
-            let rangeText = "";
-
-            // 期間フィルタ設定
-            if (currentPeriod === 'today') {
-                startDate.setHours(0,0,0,0);
-                rangeText = `${now.toLocaleDateString()} (本日)`;
-            } else if (currentPeriod === 'week') {
-                const day = now.getDay() || 7; // 月曜始まりにする場合
-                startDate.setHours(0,0,0,0);
-                startDate.setDate(now.getDate() - day + 1);
-                rangeText = "今週 (月曜〜)";
-            } else if (currentPeriod === 'month') {
-                startDate.setDate(1);
-                startDate.setHours(0,0,0,0);
-                rangeText = `${now.getMonth()+1}月度`;
-            }
+            Object.keys(casts).forEach(uid => { casts[uid].sales = 0; casts[uid].count = 0; });
+            const now = new Date(); let startDate = new Date(); let rangeText = "";
+            if (currentPeriod === 'today') { startDate.setHours(0,0,0,0); rangeText = `${now.toLocaleDateString()} (本日)`; }
+            else if (currentPeriod === 'week') { const day = now.getDay() || 7; startDate.setHours(0,0,0,0); startDate.setDate(now.getDate() - day + 1); rangeText = "今週 (月曜〜)"; }
+            else if (currentPeriod === 'month') { startDate.setDate(1); startDate.setHours(0,0,0,0); rangeText = `${now.getMonth()+1}月度`; }
             document.getElementById('range-label').textContent = rangeText;
 
-            // 集計実行
             slips.forEach(s => {
                 const sDate = s.startTime ? s.startTime.toDate() : new Date();
-                
                 if (sDate >= startDate) {
                     const castId = s.primaryCastId;
-                    // キャストが存在し、かつ指名(shime)の場合のみカウントするか、
-                    // 売上は全伝票対象にするか。ここでは「担当(primaryCastId)」がいれば全部加算する
-                    if (casts[castId]) {
-                        casts[castId].sales += (s.totalAmount || 0);
-                        
-                        // 本数（指名本数）は visitType='shime' のみカウントするのが一般的
-                        if (s.visitType === 'shime') {
-                            casts[castId].count += 1;
-                        }
-                    }
+                    if (casts[castId]) { casts[castId].sales += (s.totalAmount || 0); if (s.visitType === 'shime') casts[castId].count += 1; }
                 }
             });
-
             renderRanking();
         }
 
-        // 4. 描画ロジック
         function renderRanking() {
-            const container = document.getElementById('ranking-container');
-            container.innerHTML = "";
-
-            // 配列化してソート
-            let rankingData = Object.keys(casts).map(uid => {
-                return {
-                    id: uid,
-                    name: casts[uid].name,
-                    val: currentType === 'sales' ? casts[uid].sales : casts[uid].count
-                };
-            });
-
-            // 降順ソート
+            const container = document.getElementById('ranking-container'); container.innerHTML = "";
+            let rankingData = Object.keys(casts).map(uid => { return { id: uid, name: casts[uid].name, val: currentType === 'sales' ? casts[uid].sales : casts[uid].count }; });
             rankingData.sort((a, b) => b.val - a.val);
-
-            // 最大値（グラフの分母用）
             const maxVal = rankingData.length > 0 ? rankingData[0].val : 0;
-
-            if (maxVal === 0) {
-                container.innerHTML = `<div style="text-align:center; padding:30px; color:#aaa;">データがありません</div>`;
-                return;
-            }
-
+            if (maxVal === 0) { container.innerHTML = `<div style="text-align:center; padding:30px; color:#aaa;">データがありません</div>`; return; }
             rankingData.forEach((item, index) => {
-                // スコアが0の人は表示しない設定も可だが、今回は全員表示
-                const rank = index + 1;
-                const percent = maxVal > 0 ? (item.val / maxVal) * 100 : 0;
-                
-                // 金額整形 or 回数整形
+                const rank = index + 1; const percent = maxVal > 0 ? (item.val / maxVal) * 100 : 0;
                 const valStr = currentType === 'sales' ? `¥${item.val.toLocaleString()}` : `${item.val}本`;
                 const unitStr = currentType === 'sales' ? 'Sales' : 'Visits';
-
                 const div = document.createElement('div');
                 div.className = `rank-card rank-${rank}`;
-                div.innerHTML = `
-                    <div class="rank-pos">
-                        ${rank <= 1 ? '<i class="fas fa-crown crown-icon"></i>' : ''}${rank}
-                    </div>
-                    <div class="cast-info">
-                        <div class="cast-name">${item.name}</div>
-                        <div class="bar-container">
-                            <div class="bar-fill" style="width: ${percent}%"></div>
-                        </div>
-                    </div>
-                    <div class="score-box">
-                        <div class="score-val">${valStr}</div>
-                        <div class="score-unit">${unitStr}</div>
-                    </div>
-                `;
+                div.innerHTML = `<div class="rank-pos">${rank <= 1 ? '<i class="fas fa-crown crown-icon"></i>' : ''}${rank}</div><div class="cast-info"><div class="cast-name">${item.name}</div><div class="bar-container"><div class="bar-fill" style="width: ${percent}%"></div></div></div><div class="score-box"><div class="score-val">${valStr}</div><div class="score-unit">${unitStr}</div></div>`;
                 container.appendChild(div);
             });
         }
 
-        // Global Functions
-        window.setPeriod = (p) => {
-            currentPeriod = p;
-            document.querySelectorAll('.p-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            calcRanking();
-        };
-
-        window.setType = (t) => {
-            currentType = t;
-            document.querySelectorAll('.t-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            calcRanking();
-        };
-
+        window.setPeriod = (p) => { currentPeriod = p; document.querySelectorAll('.p-btn').forEach(b => b.classList.remove('active')); event.target.classList.add('active'); calcRanking(); };
+        window.setType = (t) => { currentType = t; document.querySelectorAll('.t-btn').forEach(b => b.classList.remove('active')); event.target.classList.add('active'); calcRanking(); };
         loadCasts();
     </script>
 </body>

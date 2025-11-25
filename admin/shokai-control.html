@@ -7,99 +7,31 @@
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* レイアウト共通 */
         .dashboard-container { display: flex; min-height: 100vh; }
         .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
         .main-content { flex: 1; padding: 30px; background-color: var(--bg-color); }
-        
         .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
         .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
         .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
 
-        /* 初回管理専用スタイル */
-        .shokai-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 20px;
-        }
-
-        .shokai-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: var(--shadow-sm);
-            overflow: hidden;
-            border-top: 4px solid #007bff; /* Freeは青 */
-        }
-
-        .card-header {
-            padding: 15px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        .shokai-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+        .shokai-card { background: white; border-radius: 12px; box-shadow: var(--shadow-sm); overflow: hidden; border-top: 4px solid #007bff; }
+        .card-header { padding: 15px; background: #f8f9fa; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .table-name { font-size: 1.2rem; font-weight: bold; }
         .guest-count { background: #333; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; }
-
         .card-body { padding: 15px; }
-
-        /* 接客履歴リスト */
-        .rotation-list {
-            margin-bottom: 15px;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-        .rotation-item {
-            display: flex; justify-content: space-between; font-size: 0.9rem;
-            padding: 6px 0; border-bottom: 1px dashed #eee;
-        }
+        .rotation-list { margin-bottom: 15px; max-height: 150px; overflow-y: auto; }
+        .rotation-item { display: flex; justify-content: space-between; font-size: 0.9rem; padding: 6px 0; border-bottom: 1px dashed #eee; }
         .time-ago { color: #999; font-size: 0.8rem; }
-
-        /* 指名状況エリア */
-        .nomination-status {
-            background: #fff0f6;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            margin-bottom: 15px;
-        }
+        .nomination-status { background: #fff0f6; padding: 10px; border-radius: 8px; font-size: 0.9rem; margin-bottom: 15px; }
         .nom-label { font-weight: bold; color: #c026d3; margin-right: 5px; }
-
-        /* アクションボタン */
-        .control-btn {
-            width: 100%;
-            padding: 10px;
-            background: white;
-            border: 1px solid var(--primary-color);
-            color: var(--primary-color);
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
-        }
+        .control-btn { width: 100%; padding: 10px; background: white; border: 1px solid var(--primary-color); color: var(--primary-color); border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .control-btn:hover { background: #e6f2ff; }
-
-        /* モーダル */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 30px; border-radius: 12px; width: 600px; max-width: 95%; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
-        
-        /* キャスト選択チップ */
         .cast-chip-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
-        .cast-chip {
-            padding: 8px 16px;
-            border-radius: 20px;
-            border: 1px solid #ddd;
-            cursor: pointer;
-            background: white;
-            transition: 0.2s;
-        }
-        .cast-chip.selected {
-            background: var(--primary-color); color: white; border-color: var(--primary-color);
-        }
-        /* 選択済みで無効化（別の項目で選ばれている等） */
-        .cast-chip.disabled { opacity: 0.5; pointer-events: none; background: #eee; }
-
+        .cast-chip { padding: 8px 16px; border-radius: 20px; border: 1px solid #ddd; cursor: pointer; background: white; transition: 0.2s; }
+        .cast-chip.selected { background: var(--primary-color); color: white; border-color: var(--primary-color); }
         .section-header { margin-top: 20px; margin-bottom: 10px; font-weight: bold; border-left: 4px solid var(--primary-color); padding-left: 10px; }
     </style>
 </head>
@@ -110,6 +42,7 @@
             <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
             <nav>
                 <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
+                <a href="schedule.html" class="menu-item"><i class="fas fa-calendar-alt"></i> スケジュール</a>
                 <a href="slips.html" class="menu-item"><i class="fas fa-file-invoice-dollar"></i> 伝票一覧</a>
                 <a href="call-management.html" class="menu-item"><i class="fas fa-music"></i> コール管理</a>
                 <a href="shokai-control.html" class="menu-item active"><i class="fas fa-users"></i> 初回・付け回し</a>
@@ -117,6 +50,7 @@
                 <a href="inventory.html" class="menu-item"><i class="fas fa-boxes"></i> 在庫管理</a>
                 <a href="cast-list.html" class="menu-item"><i class="fas fa-user-tie"></i> キャスト管理</a>
                 <a href="attendance.html" class="menu-item"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="salary.html" class="menu-item"><i class="fas fa-money-bill-wave"></i> 給与管理</a>
                 <a href="customers.html" class="menu-item"><i class="fas fa-address-book"></i> 顧客管理</a>
                 <a href="sales-analysis.html" class="menu-item"><i class="fas fa-chart-line"></i> 売上分析</a>
                 <a href="ranking.html" class="menu-item"><i class="fas fa-trophy"></i> ランキング</a>
@@ -130,7 +64,6 @@
             <p style="color: var(--text-sub); margin-bottom: 30px;">
                 現在「フリー(Free)」で入店中のテーブルのみ表示しています。
             </p>
-            
             <div id="shokai-container" class="shokai-grid">
                 <div style="text-align:center; grid-column:1/-1;">読み込み中...</div>
             </div>
@@ -141,20 +74,13 @@
         <div class="modal-content">
             <h3><i class="fas fa-edit"></i> 付け回し・指名管理</h3>
             <p id="modal-table-info" style="color:#666; margin-bottom:20px;"></p>
-
             <div class="section-header">今回、席につけるホスト (付け回し)</div>
             <div style="font-size:0.8rem; color:#666;">※選択すると履歴に追加されます</div>
-            <div id="rotation-chips" class="cast-chip-container">
-                </div>
-
+            <div id="rotation-chips" class="cast-chip-container"></div>
             <div class="section-header">写真指名 (<span id="limit-photo">2</span>名まで)</div>
-            <div id="photo-chips" class="cast-chip-container">
-                </div>
-
+            <div id="photo-chips" class="cast-chip-container"></div>
             <div class="section-header">送り指名 (<span id="limit-okuri">1</span>名まで)</div>
-            <div id="okuri-chips" class="cast-chip-container">
-                </div>
-
+            <div id="okuri-chips" class="cast-chip-container"></div>
             <div style="margin-top:30px; display:flex; gap:10px;">
                 <button id="save-btn" class="btn-primary">情報を更新する</button>
                 <button id="close-modal" class="btn-primary" style="background:#6c757d;">閉じる</button>
@@ -164,23 +90,19 @@
 
     <script type="module">
         import { db } from '../assets/js/firebase-config.js';
-        import { collection, query, where, onSnapshot, doc, updateDoc, getDoc, getDocs, serverTimestamp, arrayUnion } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { collection, query, where, onSnapshot, doc, updateDoc, getDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         if (!tenantId) window.location.href = "../index.html";
 
         const container = document.getElementById('shokai-container');
         const modal = document.getElementById('control-modal');
-        
-        // キャスト一覧保持用
         let workingCasts = []; 
         let currentSlipId = null;
         let currentSlipData = null;
-        let shokaiLimit = { photo: 2, okuri: 1 }; // デフォルト
+        let shokaiLimit = { photo: 2, okuri: 1 };
 
-        // 1. 設定と出勤キャストの読み込み
         async function initData() {
-            // 設定取得
             const settingsSnap = await getDoc(doc(db, "tenants", tenantId));
             if(settingsSnap.exists()) {
                 const conf = settingsSnap.data().config?.shokaiLimit;
@@ -188,177 +110,87 @@
                 document.getElementById('limit-photo').textContent = shokaiLimit.photo;
                 document.getElementById('limit-okuri').textContent = shokaiLimit.okuri;
             }
-
-            // 出勤中キャスト取得 (currentStatus == 'working' のユーザー)
-            // ※今回は簡易的に全員取得してからフィルタするが、人数多いならクエリで絞る
             const q = query(collection(db, "tenants", tenantId, "users"), where("role", "==", "cast"));
             const castSnap = await getDocs(q);
-            
-            // リアルタイムである必要があまりないのでgetDocsで取得
-            // 本来はonSnapshotで出勤状況を監視したほうが良い
             workingCasts = [];
-            castSnap.forEach(d => {
-                const data = d.data();
-                // テスト用に全員表示するが、本来は && data.currentStatus === 'working'
-                workingCasts.push({ id: d.id, name: data.name, status: data.currentStatus });
-            });
-
+            castSnap.forEach(d => { workingCasts.push({ id: d.id, name: d.data().name, status: d.data().currentStatus }); });
             startShokaiListener();
         }
 
-        // 2. 初回卓 (Free) の監視
         function startShokaiListener() {
-            // visitTypeが 'free' のアクティブ伝票を抽出
-            const q = query(
-                collection(db, "tenants", tenantId, "slips"), 
-                where("status", "==", "active"),
-                where("visitType", "==", "free")
-            );
-
+            const q = query(collection(db, "tenants", tenantId, "slips"), where("status", "==", "active"), where("visitType", "==", "free"));
             onSnapshot(q, (snapshot) => {
                 container.innerHTML = "";
-                if (snapshot.empty) {
-                    container.innerHTML = `<div style="text-align:center; grid-column:1/-1; color:#666; padding:50px;">現在フリーのお客様はいません</div>`;
-                    return;
-                }
-
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    renderCard(doc.id, data);
-                });
+                if (snapshot.empty) { container.innerHTML = `<div style="text-align:center; grid-column:1/-1; color:#666; padding:50px;">現在フリーのお客様はいません</div>`; return; }
+                snapshot.forEach(doc => { renderCard(doc.id, doc.data()); });
             });
         }
 
-        // 3. カード描画
         function renderCard(id, data) {
-            // 初回データ (なければ初期化)
             const sData = data.shokaiData || { rotations: [], photoNomination: [], sendOffNomination: null };
-            
-            // 回転数
             const rotationCount = sData.rotations ? sData.rotations.length : 0;
-            
-            // 指名状況テキスト生成
             let nomText = "";
-            if(sData.photoNomination && sData.photoNomination.length > 0) {
-                // 名前解決はIDから検索が必要だが、ここでは簡易表示
-                nomText += `<div style="margin-top:5px;"><span class="nom-label">写</span> ${sData.photoNomination.length}名 指名中</div>`;
-            }
-            if(sData.sendOffNomination) {
-                nomText += `<div style="margin-top:5px;"><span class="nom-label">送</span> あり</div>`;
-            }
+            if(sData.photoNomination && sData.photoNomination.length > 0) nomText += `<div style="margin-top:5px;"><span class="nom-label">写</span> ${sData.photoNomination.length}名 指名中</div>`;
+            if(sData.sendOffNomination) nomText += `<div style="margin-top:5px;"><span class="nom-label">送</span> あり</div>`;
             if(nomText === "") nomText = "<span style='color:#ccc'>指名なし</span>";
 
-            // 履歴HTML生成
             let historyHtml = "";
             if(sData.rotations) {
-                // 最新3件くらいを表示
                 sData.rotations.slice(-3).reverse().forEach(r => {
                     const time = r.timestamp ? new Date(r.timestamp.toDate()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "";
-                    historyHtml += `
-                        <div class="rotation-item">
-                            <span>${r.castName}</span>
-                            <span class="time-ago">${time}~</span>
-                        </div>
-                    `;
+                    historyHtml += `<div class="rotation-item"><span>${r.castName}</span><span class="time-ago">${time}~</span></div>`;
                 });
             }
 
             const div = document.createElement('div');
             div.className = "shokai-card";
-            div.innerHTML = `
-                <div class="card-header">
-                    <div class="table-name">${data.tableId} <span style="font-size:0.8rem; font-weight:normal;">(${data.customerName})</span></div>
-                    <div class="guest-count"><i class="fas fa-user"></i> ${data.guestCount}名</div>
-                </div>
-                <div class="card-body">
-                    <div style="font-size:0.8rem; font-weight:bold; color:#666; margin-bottom:5px;">着席履歴 (計${rotationCount}人)</div>
-                    <div class="rotation-list">
-                        ${historyHtml || '<div style="color:#ccc; font-size:0.8rem;">履歴なし</div>'}
-                    </div>
-
-                    <div class="nomination-status">
-                        ${nomText}
-                    </div>
-
-                    <button class="control-btn" onclick="openControlModal('${id}')">
-                        <i class="fas fa-pen"></i> 管理・編集
-                    </button>
-                </div>
-            `;
+            div.innerHTML = `<div class="card-header"><div class="table-name">${data.tableId} <span style="font-size:0.8rem; font-weight:normal;">(${data.customerName})</span></div><div class="guest-count"><i class="fas fa-user"></i> ${data.guestCount}名</div></div><div class="card-body"><div style="font-size:0.8rem; font-weight:bold; color:#666; margin-bottom:5px;">着席履歴 (計${rotationCount}人)</div><div class="rotation-list">${historyHtml || '<div style="color:#ccc; font-size:0.8rem;">履歴なし</div>'}</div><div class="nomination-status">${nomText}</div><button class="control-btn" onclick="openControlModal('${id}')"><i class="fas fa-pen"></i> 管理・編集</button></div>`;
             container.appendChild(div);
         }
 
-        // 4. モーダル制御 (Global)
         window.openControlModal = async (slipId) => {
             currentSlipId = slipId;
-            
-            // 最新データを取得
             const snap = await getDoc(doc(db, "tenants", tenantId, "slips", slipId));
             if(!snap.exists()) return;
             currentSlipData = snap.data();
             const sData = currentSlipData.shokaiData || { rotations: [], photoNomination: [], sendOffNomination: null };
-
             document.getElementById('modal-table-info').textContent = `${currentSlipData.tableId} - ${currentSlipData.customerName}様`;
-
             renderChips(sData);
             modal.style.display = 'flex';
         };
 
         document.getElementById('close-modal').onclick = () => modal.style.display = 'none';
 
-        // チップ描画ロジック
         function renderChips(sData) {
             const rotContainer = document.getElementById('rotation-chips');
             const photoContainer = document.getElementById('photo-chips');
             const okuriContainer = document.getElementById('okuri-chips');
+            rotContainer.innerHTML = ""; photoContainer.innerHTML = ""; okuriContainer.innerHTML = "";
 
-            rotContainer.innerHTML = "";
-            photoContainer.innerHTML = "";
-            okuriContainer.innerHTML = "";
-
-            // 1. 付け回し (履歴に追加する人を選ぶ)
-            // 既に座ったことがある人は色を変える等のUIも考えられるが、今回はシンプルに
             workingCasts.forEach(cast => {
                 const chip = createChip(cast, false);
-                chip.onclick = () => {
-                    chip.classList.toggle('selected'); // 複数選択可
-                };
+                chip.onclick = () => { chip.classList.toggle('selected'); };
                 rotContainer.appendChild(chip);
             });
 
-            // 2. 写真指名 (Limitまで)
             const currentPhotos = sData.photoNomination || [];
             workingCasts.forEach(cast => {
                 const isSelected = currentPhotos.includes(cast.id);
                 const chip = createChip(cast, isSelected);
-                chip.dataset.id = cast.id;
-                
                 chip.onclick = () => {
-                    // 選択解除 or 選択 (上限チェック)
-                    if(chip.classList.contains('selected')) {
-                        chip.classList.remove('selected');
-                    } else {
-                        const selectedCount = photoContainer.querySelectorAll('.selected').length;
-                        if(selectedCount < shokaiLimit.photo) {
-                            chip.classList.add('selected');
-                        } else {
-                            alert(`写真指名は${shokaiLimit.photo}名までです`);
-                        }
-                    }
+                    if(chip.classList.contains('selected')) chip.classList.remove('selected');
+                    else { if(photoContainer.querySelectorAll('.selected').length < shokaiLimit.photo) chip.classList.add('selected'); else alert(`写真指名は${shokaiLimit.photo}名までです`); }
                 };
                 photoContainer.appendChild(chip);
             });
 
-            // 3. 送り指名 (1名のみ)
             const currentOkuri = sData.sendOffNomination;
             workingCasts.forEach(cast => {
                 const isSelected = (cast.id === currentOkuri);
                 const chip = createChip(cast, isSelected);
-                
                 chip.onclick = () => {
-                    // 排他選択
                     okuriContainer.querySelectorAll('.cast-chip').forEach(c => c.classList.remove('selected'));
-                    if(!isSelected) chip.classList.add('selected'); // トグル動作
+                    if(!isSelected) chip.classList.add('selected');
                 };
                 okuriContainer.appendChild(chip);
             });
@@ -371,71 +203,33 @@
             return div;
         }
 
-        // 5. 保存処理
         document.getElementById('save-btn').onclick = async () => {
             if(!currentSlipId) return;
             const btn = document.getElementById('save-btn');
             btn.disabled = true; btn.textContent = "更新中...";
-
             try {
-                const slipRef = doc(db, "tenants", tenantId, "slips", currentSlipId);
-                
-                // A. 新たに回転(着席)したキャスト
                 const newRotations = [];
-                const rotChips = document.getElementById('rotation-chips').querySelectorAll('.selected');
-                rotChips.forEach(chip => {
-                    // 名前からIDを逆引きするのは不格好だが、今回は簡略化のためworkingCastsから探す
+                document.getElementById('rotation-chips').querySelectorAll('.selected').forEach(chip => {
                     const castObj = workingCasts.find(c => c.name === chip.textContent);
-                    if(castObj) {
-                        newRotations.push({
-                            castId: castObj.id,
-                            castName: castObj.name,
-                            timestamp: new Date() // Firestoreでは変換される
-                        });
-                    }
+                    if(castObj) newRotations.push({ castId: castObj.id, castName: castObj.name, timestamp: new Date() });
                 });
-
-                // B. 写真指名リスト
                 const newPhotos = [];
                 document.getElementById('photo-chips').querySelectorAll('.selected').forEach(chip => {
                     const castObj = workingCasts.find(c => c.name === chip.textContent);
                     if(castObj) newPhotos.push(castObj.id);
                 });
-
-                // C. 送り指名
                 let newOkuri = null;
                 const okuriChip = document.getElementById('okuri-chips').querySelector('.selected');
-                if(okuriChip) {
-                    const castObj = workingCasts.find(c => c.name === okuriChip.textContent);
-                    if(castObj) newOkuri = castObj.id;
-                }
+                if(okuriChip) { const castObj = workingCasts.find(c => c.name === okuriChip.textContent); if(castObj) newOkuri = castObj.id; }
 
-                // データ更新
-                // rotationsは arrayUnion だと重複チェックが面倒(timestampが違うと別物扱い)なので
-                // 既存データ + 新規データを結合して update する
-                
-                // 現在のshokaiDataを取得
                 const sData = currentSlipData.shokaiData || { rotations: [] };
                 const updatedRotations = [...(sData.rotations || []), ...newRotations];
 
-                await updateDoc(slipRef, {
-                    "shokaiData.rotations": updatedRotations,
-                    "shokaiData.photoNomination": newPhotos,
-                    "shokaiData.sendOffNomination": newOkuri
-                });
-
+                await updateDoc(doc(db, "tenants", tenantId, "slips", currentSlipId), { "shokaiData.rotations": updatedRotations, "shokaiData.photoNomination": newPhotos, "shokaiData.sendOffNomination": newOkuri });
                 modal.style.display = 'none';
-
-            } catch (error) {
-                console.error(error);
-                alert("更新エラー");
-            } finally {
-                btn.disabled = false; btn.textContent = "情報を更新する";
-            }
+            } catch (error) { console.error(error); alert("更新エラー"); } finally { btn.disabled = false; btn.textContent = "情報を更新する"; }
         };
-
         initData();
-
     </script>
 </body>
 </html>

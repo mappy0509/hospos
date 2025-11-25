@@ -8,43 +8,23 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* 共通レイアウト */
         .dashboard-container { display: flex; min-height: 100vh; }
         .sidebar { width: 250px; background-color: #fff; border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; }
         .main-content { flex: 1; padding: 30px; background-color: var(--bg-color); }
-        
         .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
         .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
         .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
 
-        /* コントロールエリア */
-        .controls {
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;
-            background: white; padding: 15px 20px; border-radius: 12px; box-shadow: var(--shadow-sm);
-        }
+        .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: white; padding: 15px 20px; border-radius: 12px; box-shadow: var(--shadow-sm); }
         .period-selector { display: flex; gap: 10px; }
-        .period-btn {
-            padding: 8px 20px; border: 1px solid #ddd; background: #f8f9fa; border-radius: 20px;
-            cursor: pointer; font-weight: bold; color: #666; transition: 0.2s;
-        }
+        .period-btn { padding: 8px 20px; border: 1px solid #ddd; background: #f8f9fa; border-radius: 20px; cursor: pointer; font-weight: bold; color: #666; transition: 0.2s; }
         .period-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
-
-        /* KPIカード */
-        .kpi-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;
-        }
-        .kpi-card {
-            background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); text-align: center;
-        }
+        .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .kpi-card { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); text-align: center; }
         .kpi-label { color: var(--text-sub); font-size: 0.9rem; margin-bottom: 5px; font-weight: bold; }
         .kpi-value { font-size: 2rem; font-weight: bold; color: var(--text-main); }
         .kpi-unit { font-size: 1rem; margin-left: 5px; }
-
-        /* グラフエリア */
-        .chart-container {
-            background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm);
-            height: 400px; position: relative;
-        }
+        .chart-container { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); height: 400px; position: relative; }
     </style>
 </head>
 <body>
@@ -54,6 +34,7 @@
             <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
             <nav>
                 <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
+                <a href="schedule.html" class="menu-item"><i class="fas fa-calendar-alt"></i> スケジュール</a>
                 <a href="slips.html" class="menu-item"><i class="fas fa-file-invoice-dollar"></i> 伝票一覧</a>
                 <a href="call-management.html" class="menu-item"><i class="fas fa-music"></i> コール管理</a>
                 <a href="shokai-control.html" class="menu-item"><i class="fas fa-users"></i> 初回・付け回し</a>
@@ -61,6 +42,7 @@
                 <a href="inventory.html" class="menu-item"><i class="fas fa-boxes"></i> 在庫管理</a>
                 <a href="cast-list.html" class="menu-item"><i class="fas fa-user-tie"></i> キャスト管理</a>
                 <a href="attendance.html" class="menu-item"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="salary.html" class="menu-item"><i class="fas fa-money-bill-wave"></i> 給与管理</a>
                 <a href="customers.html" class="menu-item"><i class="fas fa-address-book"></i> 顧客管理</a>
                 <a href="sales-analysis.html" class="menu-item active"><i class="fas fa-chart-line"></i> 売上分析</a>
                 <a href="ranking.html" class="menu-item"><i class="fas fa-trophy"></i> ランキング</a>
@@ -71,197 +53,91 @@
 
         <div class="main-content">
             <h2 style="margin-bottom: 20px;"><i class="fas fa-chart-line"></i> 売上分析</h2>
-            
             <div class="controls">
                 <div class="period-selector">
                     <button class="period-btn active" onclick="changePeriod('daily')">日次レポート</button>
                     <button class="period-btn" onclick="changePeriod('monthly')">月次推移</button>
                 </div>
-                <div style="font-weight:bold; font-size:1.1rem;" id="current-range-label">
-                    </div>
+                <div style="font-weight:bold; font-size:1.1rem;" id="current-range-label"></div>
             </div>
-
             <div class="kpi-grid">
-                <div class="kpi-card">
-                    <div class="kpi-label">期間総売上</div>
-                    <div class="kpi-value" id="kpi-sales">¥0</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">総来客数 (組数)</div>
-                    <div class="kpi-value"><span id="kpi-count">0</span><span class="kpi-unit">組</span></div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">客単価 (平均)</div>
-                    <div class="kpi-value" id="kpi-average">¥0</div>
-                </div>
+                <div class="kpi-card"><div class="kpi-label">期間総売上</div><div class="kpi-value" id="kpi-sales">¥0</div></div>
+                <div class="kpi-card"><div class="kpi-label">総来客数 (組数)</div><div class="kpi-value"><span id="kpi-count">0</span><span class="kpi-unit">組</span></div></div>
+                <div class="kpi-card"><div class="kpi-label">客単価 (平均)</div><div class="kpi-value" id="kpi-average">¥0</div></div>
             </div>
-
-            <div class="chart-container">
-                <canvas id="salesChart"></canvas>
-            </div>
+            <div class="chart-container"><canvas id="salesChart"></canvas></div>
         </div>
     </div>
 
     <script type="module">
         import { db } from '../assets/js/firebase-config.js';
-        import { collection, query, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         if (!tenantId) window.location.href = "../index.html";
 
-        let currentPeriod = 'daily'; // 'daily' | 'monthly'
+        let currentPeriod = 'daily';
         let chartInstance = null;
         let allSlips = [];
 
-        // 1. データ取得 (会計済みのもののみ)
         async function loadData() {
-            // 本来は日付範囲で絞るべきですが、今回は全件取得してJSでフィルタします
-            // 単に「会計済み」のデータを全部持ってくるだけにする -> インデックス不要
-const q = query(collection(db, "tenants", tenantId, "slips"), where("status", "==", "paid"));
+            const q = query(collection(db, "tenants", tenantId, "slips"), where("status", "==", "paid"));
             const snap = await getDocs(q);
-            
             allSlips = [];
             snap.forEach(doc => {
                 const data = doc.data();
-                if(data.paidAt) {
-                    allSlips.push({
-                        date: data.paidAt.toDate(),
-                        amount: data.totalAmount || 0,
-                        count: 1
-                    });
-                }
+                if(data.paidAt) allSlips.push({ date: data.paidAt.toDate(), amount: data.totalAmount || 0, count: 1 });
             });
-
             renderAnalysis();
         }
 
-        // 2. 集計・描画ロジック
         function renderAnalysis() {
             const now = new Date();
-            let labels = [];
-            let dataSales = [];
-            let dataCount = [];
-            let filteredSlips = [];
-            let labelText = "";
+            let labels = [], dataSales = [], dataCount = [], filteredSlips = [], labelText = "";
 
             if (currentPeriod === 'daily') {
-                // 今月の1日〜今日までを表示
                 const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
                 labelText = `${now.getFullYear()}年 ${now.getMonth()+1}月度 日報`;
-
-                // 日付ごとに箱を作る
                 const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
                 const salesMap = new Array(daysInMonth).fill(0);
                 const countMap = new Array(daysInMonth).fill(0);
-
                 filteredSlips = allSlips.filter(s => s.date >= startOfMonth);
-
-                filteredSlips.forEach(s => {
-                    const day = s.date.getDate(); // 1~31
-                    salesMap[day - 1] += s.amount;
-                    countMap[day - 1] += 1;
-                });
-
-                // グラフ用データ生成
-                for(let i=1; i<=daysInMonth; i++) {
-                    labels.push(`${i}日`);
-                }
-                dataSales = salesMap;
-                dataCount = countMap;
-
+                filteredSlips.forEach(s => { const day = s.date.getDate(); salesMap[day - 1] += s.amount; countMap[day - 1] += 1; });
+                for(let i=1; i<=daysInMonth; i++) labels.push(`${i}日`);
+                dataSales = salesMap; dataCount = countMap;
             } else if (currentPeriod === 'monthly') {
-                // 今年の1月〜12月
                 const startOfYear = new Date(now.getFullYear(), 0, 1);
                 labelText = `${now.getFullYear()}年 年間推移`;
-
                 const salesMap = new Array(12).fill(0);
                 const countMap = new Array(12).fill(0);
-
                 filteredSlips = allSlips.filter(s => s.date >= startOfYear);
-
-                filteredSlips.forEach(s => {
-                    const month = s.date.getMonth(); // 0~11
-                    salesMap[month] += s.amount;
-                    countMap[month] += 1;
-                });
-
+                filteredSlips.forEach(s => { const month = s.date.getMonth(); salesMap[month] += s.amount; countMap[month] += 1; });
                 labels = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
-                dataSales = salesMap;
-                dataCount = countMap;
+                dataSales = salesMap; dataCount = countMap;
             }
 
             document.getElementById('current-range-label').textContent = labelText;
-
-            // KPI計算
             const totalSales = dataSales.reduce((a,b) => a+b, 0);
             const totalCount = dataCount.reduce((a,b) => a+b, 0);
             const avg = totalCount > 0 ? Math.floor(totalSales / totalCount) : 0;
-
             document.getElementById('kpi-sales').textContent = `¥${totalSales.toLocaleString()}`;
             document.getElementById('kpi-count').textContent = totalCount;
             document.getElementById('kpi-average').textContent = `¥${avg.toLocaleString()}`;
-
-            // チャート描画
             drawChart(labels, dataSales);
         }
 
-        // 3. Chart.js 設定
         function drawChart(labels, data) {
             const ctx = document.getElementById('salesChart').getContext('2d');
-            
-            if (chartInstance) {
-                chartInstance.destroy(); // 古いグラフを破棄
-            }
-
+            if (chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctx, {
                 type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: '売上金額 (¥)',
-                        data: data,
-                        backgroundColor: 'rgba(0, 123, 255, 0.5)',
-                        borderColor: 'rgba(0, 123, 255, 1)',
-                        borderWidth: 1,
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return '¥' + value.toLocaleString();
-                                }
-                            }
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return ' ¥' + context.raw.toLocaleString();
-                                }
-                            }
-                        }
-                    }
-                }
+                data: { labels: labels, datasets: [{ label: '売上金額 (¥)', data: data, backgroundColor: 'rgba(0, 123, 255, 0.5)', borderColor: 'rgba(0, 123, 255, 1)', borderWidth: 1, borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: function(value) { return '¥' + value.toLocaleString(); } } } }, plugins: { tooltip: { callbacks: { label: function(context) { return ' ¥' + context.raw.toLocaleString(); } } } } }
             });
         }
 
-        // 4. 切り替え機能 (Global function)
-        window.changePeriod = (period) => {
-            currentPeriod = period;
-            document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            renderAnalysis();
-        };
-
+        window.changePeriod = (period) => { currentPeriod = period; document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active')); event.target.classList.add('active'); renderAnalysis(); };
         loadData();
-
     </script>
 </body>
 </html>

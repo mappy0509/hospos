@@ -7,108 +7,37 @@
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* スマホ特化スタイル */
+        /* (既存スタイル) */
         body { background-color: #f8f9fa; padding-bottom: 80px; }
-        
-        .page-header {
-            background: white;
-            padding: 15px 20px;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        .page-header { background: white; padding: 15px 20px; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
         .page-title { font-weight: bold; font-size: 1.1rem; }
 
-        /* テーブルグリッド */
-        .table-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr); /* 3列表示 */
-            gap: 15px;
-            padding: 20px;
-        }
-
-        .table-card {
-            background: white;
-            border-radius: 12px;
-            aspect-ratio: 1 / 1; /* 正方形にする */
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            box-shadow: var(--shadow-sm);
-            cursor: pointer;
-            position: relative;
-            border: 2px solid transparent;
-            transition: 0.1s;
-        }
+        .table-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 20px; }
+        .table-card { background: white; border-radius: 12px; aspect-ratio: 1 / 1; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: var(--shadow-sm); cursor: pointer; position: relative; border: 2px solid transparent; transition: 0.1s; }
         .table-card:active { transform: scale(0.95); }
-
         .table-name { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; }
         .table-status { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; }
 
-        /* 空き卓（青） */
         .table-empty { border-color: #e9ecef; }
         .table-empty .table-name { color: var(--text-main); }
         .table-empty .table-status { background: #e6f2ff; color: var(--primary-color); }
         .table-empty .icon { color: #dee2e6; font-size: 1.5rem; margin-bottom: 5px; }
 
-        /* 滞在中（ピンク/赤） */
         .table-occupied { background-color: #fff5f5; border-color: #ffadad; }
         .table-occupied .table-name { color: #c92a2a; }
         .table-occupied .table-status { background: #ffc9c9; color: #a61e4d; font-weight: bold; }
         .table-occupied .icon { color: #ff8787; font-size: 1.5rem; margin-bottom: 5px; }
         .guest-info { font-size: 0.7rem; color: #666; margin-top: 5px; text-align: center; }
 
-        /* モーダル */
-        .modal-overlay {
-            display: none;
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6);
-            z-index: 1000;
-            justify-content: center;
-            align-items: flex-end; /* 下から出す */
-        }
-        .modal-sheet {
-            background: white;
-            width: 100%;
-            border-radius: 20px 20px 0 0;
-            padding: 25px;
-            animation: slideUp 0.3s ease-out;
-        }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: flex-end; }
+        .modal-sheet { background: white; width: 100%; border-radius: 20px 20px 0 0; padding: 25px; animation: slideUp 0.3s ease-out; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
         .sheet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .sheet-title { font-weight: bold; font-size: 1.2rem; }
-
         .selection-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
-        .select-btn {
-            padding: 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            background: white;
-            text-align: center;
-            font-size: 0.9rem;
-        }
+        .select-btn { padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: white; text-align: center; font-size: 0.9rem; }
         .select-btn.selected { background: var(--primary-color); color: white; border-color: var(--primary-color); }
-        
-        .number-input {
-            width: 100%; padding: 15px; font-size: 1.2rem; text-align: center;
-            border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 20px;
-        }
-
-        /* ボトムナビ (home.htmlと同じ) */
-        .bottom-nav {
-            position: fixed; bottom: 0; left: 0; width: 100%; background: white;
-            display: flex; justify-content: space-around; padding: 12px 0 15px;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 100;
-        }
-        .nav-item { text-align: center; color: #adb5bd; text-decoration: none; font-size: 0.7rem; flex: 1; }
-        .nav-item i { display: block; font-size: 1.4rem; margin-bottom: 4px; }
-        .nav-item.active { color: var(--primary-color); }
+        .number-input { width: 100%; padding: 15px; font-size: 1.2rem; text-align: center; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
@@ -128,7 +57,6 @@
                 <div class="sheet-title">卓 <span id="modal-table-name"></span> : 入店処理</div>
                 <button id="close-modal" style="background:none; border:none; font-size:1.5rem;"><i class="fas fa-times"></i></button>
             </div>
-
             <form id="start-slip-form">
                 <label style="font-weight:bold; display:block; margin-bottom:10px;">来店スタイル</label>
                 <div class="selection-grid">
@@ -137,58 +65,56 @@
                     <div class="select-btn" onclick="selectType(this, 'eda')">枝/場内</div>
                 </div>
                 <input type="hidden" id="slip-type" value="shime">
-
                 <label style="font-weight:bold; display:block; margin-bottom:10px;">お客様人数</label>
                 <input type="number" id="guest-count" class="number-input" value="1" min="1">
-
                 <div class="form-group">
                     <label style="font-weight:bold; display:block; margin-bottom:10px;">お客様名（任意）</label>
                     <input type="text" id="customer-name" placeholder="例: みかさん" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd;">
                 </div>
-
-                <button type="submit" class="btn-primary" style="margin-top:10px;">伝票を開始する</button>
+                <button type="submit" class="btn-primary" style="margin-top:10px;" id="start-btn">伝票を開始する</button>
             </form>
         </div>
     </div>
 
     <div class="bottom-nav">
-        <a href="home.html" class="nav-item">
-            <i class="fas fa-home"></i>ホーム
-        </a>
-        <a href="order.html" class="nav-item active">
-            <i class="fas fa-glass-martini-alt"></i>注文
-        </a>
-        <a href="my-customers.html" class="nav-item">
-            <i class="fas fa-address-book"></i>顧客
-        </a>
-        <a href="profile.html" class="nav-item">
-            <i class="fas fa-user"></i>マイページ
-        </a>
+        <a href="home.html" class="nav-item"><i class="fas fa-home"></i>ホーム</a>
+        <a href="order.html" class="nav-item active"><i class="fas fa-glass-martini-alt"></i>注文</a>
+        <a href="my-customers.html" class="nav-item"><i class="fas fa-address-book"></i>顧客</a>
+        <a href="profile.html" class="nav-item"><i class="fas fa-user"></i>マイページ</a>
     </div>
 
     <script type="module">
         import { db } from '../assets/js/firebase-config.js';
-        import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { getBusinessDate, formatDateYMD } from '../assets/js/utils.js';
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         const myUid = sessionStorage.getItem('hospos_uid');
-
-        // 出勤チェック (出勤してないとhomeに戻す)
-        // ※本来はDBのステータスも見ますが、簡易的にセッションや遷移元を信頼する形
         if (!tenantId) window.location.href = "../index.html";
 
         const tableContainer = document.getElementById('table-container');
         const modal = document.getElementById('checkin-modal');
         const closeModal = document.getElementById('close-modal');
         const startSlipForm = document.getElementById('start-slip-form');
+        const startBtn = document.getElementById('start-btn');
         
-        // 仮のテーブルリスト (本来は設定から取得)
         const TABLES = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "VIP1", "VIP2"];
-        let activeSlips = {}; // tableId -> slipData
+        let activeSlips = {};
+        let cutoffHour = 0;
 
-        // 1. 現在アクティブな伝票を監視
+        // 設定読み込み
+        async function loadConfig() {
+            try {
+                const docSnap = await getDoc(doc(db, "tenants", tenantId));
+                if(docSnap.exists()) {
+                    cutoffHour = docSnap.data().config?.businessDay?.cutoffHour ?? 0;
+                }
+            } catch(e) { console.error(e); }
+        }
+        loadConfig();
+
+        // アクティブ伝票監視
         const q = query(collection(db, "tenants", tenantId, "slips"), where("status", "==", "active"));
-        
         onSnapshot(q, (snapshot) => {
             activeSlips = {};
             snapshot.forEach(doc => {
@@ -198,44 +124,30 @@
             renderTables();
         });
 
-        // 2. テーブル描画
         function renderTables() {
             tableContainer.innerHTML = "";
-            
             TABLES.forEach(tableName => {
                 const slip = activeSlips[tableName];
                 const div = document.createElement('div');
-                
                 if (slip) {
-                    // 滞在中 (Occupied)
                     div.className = "table-card table-occupied";
                     div.innerHTML = `
                         <i class="fas fa-glass-cheers icon"></i>
                         <div class="table-name">${tableName}</div>
-                        <div class="table-status">滞在中</div>
+                        <div class="table-status">No.${slip.slipNumber || '-'}</div>
                         <div class="guest-info">${slip.customerName || '名称未設定'}</div>
                     `;
-                    // 滞在中の卓をクリック -> メニュー画面へ (伝票IDを持っていく)
-                    div.onclick = () => {
-                        window.location.href = `menu.html?slipId=${slip.id}`;
-                    };
+                    div.onclick = () => { window.location.href = `menu.html?slipId=${slip.id}`; };
                 } else {
-                    // 空き卓 (Empty)
                     div.className = "table-card table-empty";
-                    div.innerHTML = `
-                        <div class="table-name">${tableName}</div>
-                        <div class="table-status">空席</div>
-                    `;
-                    // 空き卓をクリック -> チェックインモーダルを開く
+                    div.innerHTML = `<div class="table-name">${tableName}</div><div class="table-status">空席</div>`;
                     div.onclick = () => openCheckinModal(tableName);
                 }
                 tableContainer.appendChild(div);
             });
         }
 
-        // --- モーダル処理 ---
         let selectedTableId = null;
-
         function openCheckinModal(tableId) {
             selectedTableId = tableId;
             document.getElementById('modal-table-name').textContent = tableId;
@@ -243,51 +155,72 @@
             document.getElementById('guest-count').value = 1;
             modal.style.display = 'flex';
         }
-
-        closeModal.onclick = () => {
-            modal.style.display = 'none';
-        };
-        
-        // タイプ選択ボタンの見た目制御 (Global関数として定義してHTMLから呼べるようにする)
+        closeModal.onclick = () => { modal.style.display = 'none'; };
         window.selectType = (el, type) => {
             document.querySelectorAll('.select-btn').forEach(btn => btn.classList.remove('selected'));
             el.classList.add('selected');
             document.getElementById('slip-type').value = type;
         };
 
-        // 3. 伝票作成処理
+        // 伝票開始 (トランザクションで連番採番)
         startSlipForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            startBtn.disabled = true; startBtn.textContent = "処理中...";
+
             const type = document.getElementById('slip-type').value;
             const count = Number(document.getElementById('guest-count').value);
             const custName = document.getElementById('customer-name').value;
             
-            // 自分の名前を取得 (セッションにはIDしかないので、必要ならDB取得するが、一旦IDを入れる)
-            
             try {
-                // DBに新しい伝票を作成
-                const docRef = await addDoc(collection(db, "tenants", tenantId, "slips"), {
-                    tableId: selectedTableId,
-                    status: "active",
-                    startTime: serverTimestamp(),
-                    primaryCastId: myUid, // 伝票を立てた人（担当）
-                    customerName: custName || "新規客様",
-                    visitType: type, // shime, free, eda
-                    guestCount: count,
-                    totalAmount: 0,
-                    callBatchAmount: 0, // コール集計用
-                    orders: [] // 注文配列（サブコレクションにする案もあったが、配列の方が読み書きコストが低い場合も。今回はサブコレクション設計だが、初期化は不要）
+                // 1. 本日の営業日文字列を取得
+                const businessDate = getBusinessDate(new Date(), cutoffHour);
+                const dateStr = formatDateYMD(businessDate);
+                
+                // 2. トランザクション実行 (カウンタ更新 + 伝票作成)
+                let newSlipId;
+                
+                await runTransaction(db, async (transaction) => {
+                    // カウンタドキュメントの参照
+                    const counterRef = doc(db, "tenants", tenantId, "counters", dateStr);
+                    const counterDoc = await transaction.get(counterRef);
+                    
+                    let newNumber = 1;
+                    if (counterDoc.exists()) {
+                        newNumber = counterDoc.data().count + 1;
+                    }
+
+                    // カウンタを更新
+                    transaction.set(counterRef, { count: newNumber }, { merge: true });
+
+                    // 新しい伝票の参照を作成
+                    const slipRef = doc(collection(db, "tenants", tenantId, "slips"));
+                    newSlipId = slipRef.id;
+
+                    // 伝票データをセット
+                    transaction.set(slipRef, {
+                        tableId: selectedTableId,
+                        status: "active",
+                        startTime: serverTimestamp(),
+                        primaryCastId: myUid,
+                        customerName: custName || "新規客様",
+                        visitType: type,
+                        guestCount: count,
+                        totalAmount: 0,
+                        callBatchAmount: 0,
+                        slipNumber: newNumber, // 通し番号
+                        businessDate: dateStr, // 集計用日付文字列
+                        orders: [] 
+                    });
                 });
 
-                // 作成完了 -> メニュー画面へ移動
-                window.location.href = `menu.html?slipId=${docRef.id}`;
+                window.location.href = `menu.html?slipId=${newSlipId}`;
 
             } catch (error) {
                 console.error("伝票作成エラー:", error);
-                alert("エラーが発生しました");
+                alert("エラーが発生しました: " + error.message);
+                startBtn.disabled = false; startBtn.textContent = "伝票を開始する";
             }
         });
-
     </script>
 </body>
 </html>
