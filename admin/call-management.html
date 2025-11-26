@@ -93,7 +93,7 @@
 
     <script type="module">
         import { db } from '../assets/js/firebase-config.js';
-        import { collection, query, where, onSnapshot, doc, updateDoc, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { collection, query, where, onSnapshot, doc, updateDoc, getDoc, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         if (!tenantId) window.location.href = "../index.html";
@@ -179,16 +179,47 @@
         };
 
         document.getElementById('close-modal').onclick = () => modal.style.display = 'none';
+        
         document.getElementById('do-complete-btn').onclick = async () => {
             if (!currentSlipId) return;
             const btn = document.getElementById('do-complete-btn');
             btn.disabled = true; btn.textContent = "処理中...";
+            
+            const mainId = micMainSelect.value;
+            const subId = micSubSelect.value;
+            
             try {
+                // マイク担当の記録を保存 (call_logs コレクション)
+                const mainCast = castList.find(c => c.id === mainId);
+                if (mainId && mainCast) {
+                    await addDoc(collection(db, "tenants", tenantId, "call_logs"), {
+                        slipId: currentSlipId,
+                        castId: mainId,
+                        castName: mainCast.name,
+                        role: 'main',
+                        timestamp: serverTimestamp()
+                    });
+                }
+                
+                const subCast = castList.find(c => c.id === subId);
+                if (subId && subCast) {
+                    await addDoc(collection(db, "tenants", tenantId, "call_logs"), {
+                        slipId: currentSlipId,
+                        castId: subId,
+                        castName: subCast.name,
+                        role: 'sub',
+                        timestamp: serverTimestamp()
+                    });
+                }
+
+                // 伝票のコール残高を0にする
                 await updateDoc(doc(db, "tenants", tenantId, "slips", currentSlipId), { callBatchAmount: 0 });
+                
                 modal.style.display = 'none';
             } catch (error) { console.error(error); alert("エラーが発生しました"); } 
             finally { btn.disabled = false; btn.textContent = "コール完了にする"; }
         };
+        
         loadSettings();
     </script>
 </body>

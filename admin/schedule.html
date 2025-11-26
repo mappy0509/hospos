@@ -17,7 +17,7 @@
 
         .schedule-controls {
             background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm);
-            margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
         }
         .month-nav { font-size: 1.5rem; font-weight: bold; display: flex; align-items: center; gap: 20px; }
         .nav-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #666; }
@@ -41,13 +41,17 @@
 
         /* モーダル */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; box-shadow: var(--shadow-lg); }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; box-shadow: var(--shadow-lg); max-width: 95%; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
         .input-box { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
         .btn-action { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; color: white; font-weight: bold; }
         .btn-primary { background: var(--primary-color); }
         .btn-auto { background: #6f42c1; }
+        .btn-bulk { background: #17a2b8; }
+        
+        .bulk-textarea { width: 100%; height: 200px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-family: monospace; line-height: 1.5; resize: vertical; }
+        .helper-text { font-size: 0.85rem; color: #666; margin-bottom: 10px; background: #f8f9fa; padding: 10px; border-radius: 6px; }
     </style>
 </head>
 <body>
@@ -65,6 +69,7 @@
                 <a href="inventory.html" class="menu-item"><i class="fas fa-boxes"></i> 在庫管理</a>
                 <a href="cast-list.html" class="menu-item"><i class="fas fa-user-tie"></i> キャスト管理</a>
                 <a href="attendance.html" class="menu-item"><i class="fas fa-clock"></i> 出勤管理</a>
+                <a href="salary.html" class="menu-item"><i class="fas fa-money-bill-wave"></i> 給与管理</a>
                 <a href="customers.html" class="menu-item"><i class="fas fa-address-book"></i> 顧客管理</a>
                 <a href="sales-analysis.html" class="menu-item"><i class="fas fa-chart-line"></i> 売上分析</a>
                 <a href="ranking.html" class="menu-item"><i class="fas fa-trophy"></i> ランキング</a>
@@ -82,12 +87,15 @@
                     <span id="current-month">Loading...</span>
                     <button class="nav-btn" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
                 </div>
-                <div style="display:flex; gap:10px;">
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
                     <button class="btn-action btn-auto" onclick="autoFillHolidays()">
-                        <i class="fas fa-magic"></i> 定休日を自動反映
+                        <i class="fas fa-magic"></i> 定休日自動反映
+                    </button>
+                    <button class="btn-action btn-bulk" onclick="openBulkModal()">
+                        <i class="fas fa-file-import"></i> テキスト一括登録
                     </button>
                     <button class="btn-action btn-primary" onclick="openModal()">
-                        <i class="fas fa-plus"></i> イベント追加
+                        <i class="fas fa-plus"></i> 追加
                     </button>
                 </div>
             </div>
@@ -131,6 +139,26 @@
         </div>
     </div>
 
+    <div id="bulk-modal" class="modal-overlay">
+        <div class="modal-content" style="width:600px;">
+            <h3>スケジュール一括登録</h3>
+            <div class="helper-text">
+                以下のフォーマットで入力してください（1行に1件）:<br>
+                <strong>日付(YYYY-MM-DD) タイトル [種類]</strong><br>
+                ※区切りはスペースまたはタブ<br>
+                ※種類: event / holiday / info (省略時は event)
+            </div>
+            <textarea id="bulk-text" class="bulk-textarea" placeholder="2023-12-01 涼介バースデー event
+2023-12-05 店休日 holiday
+2023-12-24 クリスマスイベント"></textarea>
+            
+            <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+                <button type="button" class="btn-action" style="background:#ccc;" onclick="closeBulkModal()">キャンセル</button>
+                <button type="button" class="btn-action btn-primary" onclick="submitBulk()">一括登録を実行</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { db } from '../assets/js/firebase-config.js';
         import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
@@ -141,40 +169,35 @@
 
         const listContainer = document.getElementById('event-list');
         const modal = document.getElementById('event-modal');
+        const bulkModal = document.getElementById('bulk-modal');
         const form = document.getElementById('event-form');
         const deleteBtn = document.getElementById('delete-btn');
         const monthLabel = document.getElementById('current-month');
 
         let displayDate = new Date();
-        displayDate.setDate(1); // 常に1日を保持
+        displayDate.setDate(1);
 
         let tenantConfig = null;
 
-        // 初期化
         async function init() {
-            // 店舗設定（定休日設定）を取得しておく
             const snap = await getDoc(doc(db, "tenants", tenantId));
             if(snap.exists()) tenantConfig = snap.data().config;
             renderSchedule();
         }
 
-        // 月移動
         window.changeMonth = (diff) => {
             displayDate.setMonth(displayDate.getMonth() + diff);
             renderSchedule();
         };
 
-        // スケジュール描画
         async function renderSchedule() {
             const year = displayDate.getFullYear();
             const month = displayDate.getMonth() + 1;
             monthLabel.textContent = `${year}年 ${month}月`;
 
-            // 月初と月末の文字列 (YYYY-MM-DD)
             const startDate = formatDateYMD(new Date(year, month - 1, 1));
             const endDate = formatDateYMD(new Date(year, month, 0));
 
-            // Firestoreから範囲検索 (文字列比較でOK)
             const q = query(
                 collection(db, "tenants", tenantId, "events"),
                 where("date", ">=", startDate),
@@ -184,8 +207,6 @@
             const snap = await getDocs(q);
             const events = [];
             snap.forEach(d => events.push({ id: d.id, ...d.data() }));
-
-            // 日付順にソート
             events.sort((a,b) => a.date.localeCompare(b.date));
 
             listContainer.innerHTML = "";
@@ -202,11 +223,8 @@
                 let typeLabel = "イベント";
                 let tagClass = "tag-event";
 
-                if(ev.type === 'holiday') {
-                    typeClass = "type-holiday";
-                    typeLabel = "定休日";
-                    tagClass = "tag-holiday";
-                }
+                if(ev.type === 'holiday') { typeClass = "type-holiday"; typeLabel = "定休日"; tagClass = "tag-holiday"; }
+                if(ev.type === 'info') { typeClass = "type-info"; typeLabel = "お知らせ"; tagClass = "tag-info"; } // tag-info style needed if used
 
                 const div = document.createElement('div');
                 div.className = `event-card ${typeClass}`;
@@ -224,29 +242,18 @@
             });
         }
 
-        // 定休日自動反映ロジック
         window.autoFillHolidays = async () => {
-            if(!tenantConfig || !tenantConfig.businessDay || !tenantConfig.businessDay.holidays) {
-                alert("店舗設定で定休日が設定されていません");
-                return;
-            }
-
-            const holidays = tenantConfig.businessDay.holidays; // [0, 6] etc.
-            if(holidays.length === 0) {
-                alert("定休日の曜日が選択されていません");
-                return;
-            }
-
-            if(!confirm(`${displayDate.getMonth()+1}月の定休日を一括登録しますか？\n（既に登録済みの日は重複しません）`)) return;
+            if(!tenantConfig || !tenantConfig.businessDay || !tenantConfig.businessDay.holidays) { alert("店舗設定で定休日が設定されていません"); return; }
+            const holidays = tenantConfig.businessDay.holidays; 
+            if(holidays.length === 0) { alert("定休日の曜日が選択されていません"); return; }
+            if(!confirm(`${displayDate.getMonth()+1}月の定休日を一括登録しますか？`)) return;
 
             const year = displayDate.getFullYear();
-            const month = displayDate.getMonth(); // 0-indexed
+            const month = displayDate.getMonth();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
-            
             const batch = writeBatch(db);
             let count = 0;
 
-            // 既存の予定を取得して重複チェック
             const startStr = formatDateYMD(new Date(year, month, 1));
             const endStr = formatDateYMD(new Date(year, month, daysInMonth));
             const q = query(collection(db, "tenants", tenantId, "events"), where("date", ">=", startStr), where("date", "<=", endStr));
@@ -256,43 +263,73 @@
 
             for(let d=1; d<=daysInMonth; d++) {
                 const targetDate = new Date(year, month, d);
-                const dayOfWeek = targetDate.getDay(); // 0=Sun
-
+                const dayOfWeek = targetDate.getDay();
                 if(holidays.includes(dayOfWeek)) {
                     const dateStr = formatDateYMD(targetDate);
-                    // 重複なければ登録
                     if(!existingDates.has(dateStr)) {
                         const newRef = doc(collection(db, "tenants", tenantId, "events"));
-                        batch.set(newRef, {
-                            date: dateStr,
-                            title: "定休日",
-                            type: "holiday"
-                        });
+                        batch.set(newRef, { date: dateStr, title: "定休日", type: "holiday" });
                         count++;
                     }
                 }
             }
+            if(count > 0) { await batch.commit(); alert(`${count}件登録しました`); renderSchedule(); } else { alert("追加はありませんでした"); }
+        };
 
-            if(count > 0) {
-                await batch.commit();
-                alert(`${count}件の定休日を登録しました`);
-                renderSchedule();
+        // 一括登録機能
+        window.openBulkModal = () => { document.getElementById('bulk-text').value = ""; bulkModal.style.display = 'flex'; };
+        window.closeBulkModal = () => bulkModal.style.display = 'none';
+
+        window.submitBulk = async () => {
+            const text = document.getElementById('bulk-text').value;
+            const lines = text.split('\n');
+            const batch = writeBatch(db);
+            let count = 0;
+
+            for (const line of lines) {
+                const parts = line.trim().split(/\s+/); // スペースまたはタブで分割
+                if (parts.length < 2) continue; // 日付とタイトルは必須
+
+                const dateStr = parts[0];
+                // 日付形式チェック (簡易)
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
+
+                // 最後の要素が type かどうかチェック
+                let type = 'event';
+                let titleParts = parts.slice(1);
+                const lastPart = titleParts[titleParts.length - 1];
+                if (['event', 'holiday', 'info'].includes(lastPart)) {
+                    type = lastPart;
+                    titleParts.pop();
+                }
+                const title = titleParts.join(' ');
+
+                if (title) {
+                    const newRef = doc(collection(db, "tenants", tenantId, "events"));
+                    batch.set(newRef, { date: dateStr, title: title, type: type });
+                    count++;
+                }
+            }
+
+            if (count > 0) {
+                if(!confirm(`${count}件のイベントを登録しますか？`)) return;
+                try {
+                    await batch.commit();
+                    alert("登録完了しました");
+                    closeBulkModal();
+                    renderSchedule();
+                } catch(e) { alert("エラー: " + e.message); }
             } else {
-                alert("追加する定休日はありませんでした");
+                alert("有効なデータが見つかりませんでした。\nフォーマットを確認してください。");
             }
         };
 
-        // モーダル操作
+
         window.openModal = () => {
-            form.reset();
-            document.getElementById('event-id').value = "";
+            form.reset(); document.getElementById('event-id').value = "";
             document.getElementById('delete-btn').style.display = 'none';
             document.getElementById('modal-title').textContent = "イベント登録";
-            
-            // デフォルト日付
-            const d = new Date();
-            document.getElementById('event-date').value = formatDateYMD(d);
-            
+            document.getElementById('event-date').value = formatDateYMD(new Date());
             modal.style.display = 'flex';
         };
 
@@ -301,29 +338,22 @@
             const snap = await getDoc(ref);
             if(!snap.exists()) return;
             const data = snap.data();
-
             document.getElementById('event-id').value = id;
             document.getElementById('event-date').value = data.date;
             document.getElementById('event-title').value = data.title;
             document.getElementById('event-type').value = data.type;
-            
             document.getElementById('delete-btn').style.display = 'block';
             document.getElementById('modal-title').textContent = "イベント編集";
             modal.style.display = 'flex';
         };
-
         window.closeModal = () => modal.style.display = 'none';
 
-        // 削除
         document.getElementById('delete-btn').onclick = async () => {
-            const id = document.getElementById('event-id').value;
             if(!confirm("削除しますか？")) return;
-            await deleteDoc(doc(db, "tenants", tenantId, "events", id));
-            closeModal();
-            renderSchedule();
+            await deleteDoc(doc(db, "tenants", tenantId, "events", document.getElementById('event-id').value));
+            closeModal(); renderSchedule();
         };
 
-        // 保存
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('event-id').value;
@@ -332,14 +362,9 @@
                 title: document.getElementById('event-title').value,
                 type: document.getElementById('event-type').value
             };
-
-            if(id) {
-                await updateDoc(doc(db, "tenants", tenantId, "events", id), data);
-            } else {
-                await addDoc(collection(db, "tenants", tenantId, "events"), data);
-            }
-            closeModal();
-            renderSchedule();
+            if(id) await updateDoc(doc(db, "tenants", tenantId, "events", id), data);
+            else await addDoc(collection(db, "tenants", tenantId, "events"), data);
+            closeModal(); renderSchedule();
         });
 
         init();

@@ -23,13 +23,15 @@
         .today-info { background: #e6f2ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; border-left: 5px solid var(--primary-color); display: none; }
         .info-icon { font-size: 1.5rem; color: var(--primary-color); }
         .tables-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-        .tables-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+        .tables-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
         .dash-table-card { background: white; border-radius: 12px; padding: 15px; box-shadow: var(--shadow-sm); border-top: 4px solid #ccc; transition: transform 0.2s; cursor: pointer; position: relative; }
         .dash-table-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
         .status-active { border-top-color: #dc3545; background: #fff5f5; }
         .dt-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; font-size: 1.1rem; padding-right: 20px; }
-        .dt-customer { font-size: 0.9rem; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .dt-amount { font-size: 1.2rem; font-weight: bold; color: var(--text-main); margin-bottom: 5px; }
+        .dt-customer { font-size: 0.9rem; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold;}
+        .dt-amount-box { background: rgba(255,255,255,0.8); padding: 5px; border-radius: 4px; border: 1px dashed #ccc; margin-bottom: 5px; }
+        .dt-subtotal { font-size: 0.85rem; color: #666; }
+        .dt-total { font-size: 1.1rem; font-weight: bold; color: #dc3545; }
         .dt-timer { background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; color: #666; display: inline-block; }
         .card-menu-btn { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #999; cursor: pointer; transition: 0.2s; z-index: 5; }
         .card-menu-btn:hover { background-color: rgba(0,0,0,0.1); color: #333; }
@@ -84,7 +86,7 @@
         <div class="main-content">
             <div id="today-schedule" class="today-info"><i class="fas fa-info-circle info-icon"></i><div class="info-content" id="schedule-text"></div></div>
             <div class="stats-grid">
-                <div class="stat-card card-sales"><div class="stat-title">本日の総売上</div><div class="stat-value" id="daily-sales">¥0</div><div class="stat-sub" id="active-sales-sub">(未会計: ¥0)</div></div>
+                <div class="stat-card card-sales"><div class="stat-title">本日の総売上 (確定)</div><div class="stat-value" id="daily-sales">¥0</div><div class="stat-sub" id="active-sales-sub">(営業中(小計): ¥0)</div></div>
                 <div class="stat-card card-guests"><div class="stat-title">現在の組数</div><div class="stat-value"><span id="active-count">0</span> <span style="font-size:1rem;">組</span></div></div>
                 <div class="stat-card"><div class="stat-title">出勤キャスト</div><div class="stat-value"><span id="cast-count">0</span> <span style="font-size:1rem;">名</span></div></div>
             </div>
@@ -169,8 +171,9 @@
         let masterTables = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "VIP1", "VIP2"];
         let activeTableIds = new Set();
         let cutoffHour = 0;
-        let castList = []; // [{id, name}]
+        let castList = [];
         let castCustomers = {};
+        let tenantConfig = { taxRate: 10, serviceRate: 30, rounding: "up_10" }; // デフォルト
 
         document.getElementById('mobile-menu-toggle').onclick = () => document.getElementById('sidebar').classList.toggle('active');
 
@@ -181,9 +184,12 @@
                     const d = docSnap.data();
                     if(d.config?.tables?.length > 0) masterTables = d.config.tables;
                     if(d.config?.businessDay?.cutoffHour !== undefined) cutoffHour = d.config.businessDay.cutoffHour;
+                    // 税・サービス料設定の読み込み
+                    if(d.config?.taxRate !== undefined) tenantConfig.taxRate = d.config.taxRate;
+                    if(d.config?.serviceRate !== undefined) tenantConfig.serviceRate = d.config.serviceRate;
+                    if(d.config?.rounding) tenantConfig.rounding = d.config.rounding;
                 }
                 loadCasts();
-                loadTodaySchedule();
                 startDashboardListener();
             } catch(e) { console.error(e); }
         }
@@ -230,34 +236,54 @@
             else { inputArea.style.display = 'none'; nameInput.value = val; nameInput.required = false; }
         };
 
-        function loadTodaySchedule() { /* 省略 */ }
+        function calculateEstimatedTotal(subtotal) {
+            if (!subtotal) return 0;
+            let serviceFee = Math.floor(subtotal * (tenantConfig.serviceRate / 100));
+            let taxable = subtotal + serviceFee;
+            let tax = Math.floor(taxable * (tenantConfig.taxRate / 100));
+            let total = taxable + tax;
+            
+            if (tenantConfig.rounding === 'up_10') total = Math.ceil(total / 10) * 10;
+            else if (tenantConfig.rounding === 'down_10') total = Math.floor(total / 10) * 10;
+            else if (tenantConfig.rounding === 'up_100') total = Math.ceil(total / 100) * 100;
+            else if (tenantConfig.rounding === 'down_100') total = Math.floor(total / 100) * 100;
+            
+            return total;
+        }
 
         function startDashboardListener() {
             const todayStart = getBusinessDate(new Date(), cutoffHour);
             todayStart.setHours(cutoffHour, 0, 0, 0);
+            
             const q = query(collection(db, "tenants", tenantId, "slips")); 
+            
             onSnapshot(q, (snapshot) => {
-                let totalSales = 0, activeSales = 0, activeCount = 0;
+                let totalPaid = 0, activeSubtotal = 0, activeCount = 0;
                 const activeSlips = [];
                 activeTableIds.clear();
+                
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     const slipDate = data.startTime ? data.startTime.toDate() : new Date();
                     const isTodayBusiness = slipDate >= todayStart;
-                    if (data.status === 'paid' && isTodayBusiness) totalSales += (data.totalAmount || 0);
-                    else if (data.status === 'active' && isTodayBusiness) {
-                        activeSales += (data.totalAmount || 0);
-                        totalSales += (data.totalAmount || 0);
+                    
+                    if (data.status === 'paid' && isTodayBusiness) {
+                        totalPaid += (data.totalAmount || 0);
+                    } else if (data.status === 'active') {
+                        // 営業中は日付またいでも表示する
+                        activeSubtotal += (data.totalAmount || 0);
                         activeCount++;
                         activeSlips.push({ id: doc.id, ...data });
                         activeTableIds.add(data.tableId);
                     }
                 });
-                salesDisplay.textContent = `¥${totalSales.toLocaleString()}`;
-                activeSalesSub.textContent = `(うち未会計: ¥${activeSales.toLocaleString()})`;
+                
+                salesDisplay.textContent = `¥${totalPaid.toLocaleString()}`;
+                activeSalesSub.textContent = `(営業中(小計): ¥${activeSubtotal.toLocaleString()})`;
                 activeCountDisplay.textContent = activeCount;
                 renderActiveTables(activeSlips);
             });
+            
             const castQ = query(collection(db, "tenants", tenantId, "users"), where("role", "==", "cast"), where("currentStatus", "==", "working"));
             onSnapshot(castQ, (snap) => { castCountDisplay.textContent = snap.size; });
         }
@@ -266,8 +292,8 @@
             tablesGrid.innerHTML = "";
             if(slips.length === 0) { tablesGrid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:30px; color:#aaa;">稼働なし</div>`; return; }
             slips.sort((a,b) => a.tableId.localeCompare(b.tableId));
+            
             slips.forEach(slip => {
-                // 指名の場合、キャスト名を表示
                 let typeLabel = 'Free';
                 if (slip.visitType === 'shime') {
                     const cName = slip.primaryCastName ? `指名: ${slip.primaryCastName}` : '指名';
@@ -276,14 +302,24 @@
                     typeLabel = '枝';
                 }
 
+                // 経過時間の計算用
+                const startTime = slip.startTime ? slip.startTime.toDate().getTime() : Date.now();
+                
+                // 金額計算
+                const subtotal = slip.totalAmount || 0;
+                const estimatedTotal = calculateEstimatedTotal(subtotal);
+
                 const div = document.createElement('div');
                 div.className = "dash-table-card status-active";
                 div.innerHTML = `
                     <div class="card-menu-btn" onclick="openMenu(event, '${slip.id}', '${slip.tableId}')"><i class="fas fa-ellipsis-v"></i></div>
                     <div class="dt-header"><span>${slip.tableId}</span><span style="font-size:0.8rem;">${typeLabel}</span></div>
                     <div class="dt-customer">${slip.customerName} 様</div>
-                    <div class="dt-amount">¥${(slip.totalAmount||0).toLocaleString()}</div>
-                    <div class="dt-timer"><i class="fas fa-clock"></i> <span class="timer-text">00:00</span></div>
+                    <div class="dt-amount-box">
+                        <div class="dt-subtotal">小計: ¥${subtotal.toLocaleString()}</div>
+                        <div class="dt-total">総額: ¥${estimatedTotal.toLocaleString()}</div>
+                    </div>
+                    <div class="dt-timer"><i class="fas fa-clock"></i> <span class="timer-text" data-start="${startTime}">00:00</span></div>
                 `;
                 div.onclick = (e) => { if(!e.target.closest('.card-menu-btn')) window.location.href = `slip-detail.html?id=${slip.id}`; };
                 tablesGrid.appendChild(div);
@@ -292,15 +328,20 @@
         }
 
         function updateTimers() {
-            const cards = document.querySelectorAll('.dash-table-card');
             const now = Date.now();
-            cards.forEach(card => {
-                // (省略: 前回と同じ実装)
+            document.querySelectorAll('.timer-text').forEach(el => {
+                const start = parseInt(el.dataset.start);
+                if(!start) return;
+                const diff = now - start;
+                const hours = Math.floor(diff / 3600000);
+                const minutes = Math.floor((diff % 3600000) / 60000);
+                el.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
             });
         }
+        // 1分ごとに更新
         setInterval(updateTimers, 60000);
 
-        // 新規伝票作成
+        // 新規伝票作成 (省略なし)
         const newSlipModal = document.getElementById('new-slip-modal');
         window.openNewSlipModal = () => {
             const select = document.getElementById('new-slip-table');
@@ -339,7 +380,6 @@
             const castId = document.getElementById('new-slip-cast').value;
             const custSelectVal = document.getElementById('new-slip-customer-select').value;
 
-            // キャスト名解決 (指名の場合)
             let castName = null;
             if (type === 'shime') {
                 if (!castId) { alert("キャストを選択してください"); btn.disabled = false; return; }
@@ -351,7 +391,6 @@
                         alert("その名前の顧客は既に存在します。リストから選択してください。");
                         btn.disabled = false; return;
                     }
-                    // 新規顧客登録
                     try {
                         await addDoc(collection(db, "tenants", tenantId, "customers"), {
                             name: custName, assignedCastId: castId, createdAt: serverTimestamp(), lastUpdated: serverTimestamp()
@@ -377,7 +416,7 @@
                     transaction.set(slipRef, {
                         tableId: tableId, status: "active", startTime: serverTimestamp(),
                         primaryCastId: (type === 'shime') ? castId : null,
-                        primaryCastName: castName, // ★キャスト名も保存
+                        primaryCastName: castName,
                         customerName: custName || "新規客様",
                         visitType: type, guestCount: count,
                         totalAmount: 0, callBatchAmount: 0, slipNumber: newNumber, businessDate: dateStr, orders: []
@@ -388,7 +427,6 @@
             finally { btn.disabled = false; btn.textContent = "作成して開始"; }
         });
 
-        // Context Menu Logic (省略: 前回と同じ)
         let selectedSlipId = null; let selectedTableId = null;
         window.openMenu = (e, slipId, tableId) => { e.stopPropagation(); selectedSlipId = slipId; selectedTableId = tableId; const menu = document.getElementById('context-menu'); menu.style.top = `${e.pageY}px`; menu.style.left = `${e.pageX-100}px`; menu.style.display = 'block'; };
         window.addEventListener('click', () => document.getElementById('context-menu').style.display = 'none');

@@ -31,6 +31,7 @@
         .btn-edit:hover { background: #f8f9fa; }
         .add-product-card { border: 2px dashed #ddd; background: transparent; display: flex; align-items: center; justify-content: center; min-height: 150px; cursor: pointer; color: #999; font-weight: bold; border-radius: 8px; transition: 0.2s; }
         .add-product-card:hover { border-color: var(--primary-color); color: var(--primary-color); background: rgba(0,123,255,0.05); }
+        
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; max-width: 95%; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
         .form-group { margin-bottom: 15px; }
@@ -40,6 +41,16 @@
         .switch-input { transform: scale(1.2); }
         .inventory-link-box { border: 1px solid #cce5ff; background: #e6f2ff; padding: 10px; border-radius: 6px; margin-bottom: 15px; display: none; }
         .btn-danger { background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; }
+        
+        .bulk-textarea { width: 100%; height: 200px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-family: monospace; line-height: 1.5; resize: vertical; }
+        .helper-text { font-size: 0.85rem; color: #666; margin-bottom: 10px; background: #f8f9fa; padding: 10px; border-radius: 6px; }
+        .btn-bulk { background: #17a2b8; color: white; border: none; padding: 6px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; margin-left: 10px; font-size: 0.9rem; }
+        
+        /* カテゴリ操作ボタン */
+        .btn-cat-delete { background: #dc3545; color: white; border: none; padding: 6px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; margin-left: 10px; font-size: 0.9rem; display: none; }
+        .btn-cat-delete:hover { background: #c82333; }
+        .btn-cat-rename { background: #28a745; color: white; border: none; padding: 6px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; margin-left: 5px; font-size: 0.9rem; display: none; }
+        .btn-cat-rename:hover { background: #218838; }
     </style>
 </head>
 <body>
@@ -68,10 +79,16 @@
 
         <div class="main-content">
             <h2 style="margin-bottom: 20px;"><i class="fas fa-wine-bottle"></i> 商品・メニュー管理</h2>
-            <div class="category-tabs" id="category-tabs">
-                <button class="tab-btn active" onclick="filterCategory('All')">All</button>
-                <button class="tab-btn tab-btn-add" onclick="addNewCategory()">+ カテゴリ追加</button>
+            <div style="display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin-bottom:20px; border-bottom:1px solid #ddd; padding-bottom:10px;">
+                <div id="category-tabs" style="display:flex; gap:10px; overflow-x:auto; flex:1;">
+                    <button class="tab-btn active" onclick="filterCategory('All')">All</button>
+                    <button class="tab-btn tab-btn-add" onclick="addNewCategory()">+ カテゴリ追加</button>
+                </div>
+                <button id="btn-rename-cat" class="btn-cat-rename" onclick="renameCurrentCategory()"><i class="fas fa-pen"></i> カテゴリ名変更</button>
+                <button id="btn-delete-cat" class="btn-cat-delete" onclick="deleteCurrentCategory()"><i class="fas fa-trash-alt"></i> カテゴリ全削除</button>
+                <button class="btn-bulk" onclick="openBulkModal()"><i class="fas fa-file-import"></i> テキスト一括登録</button>
             </div>
+            
             <p style="color:#666; font-size:0.9rem; margin-bottom:15px;"><i class="fas fa-arrows-alt"></i> カードをドラッグ＆ドロップして並び替えできます</p>
             <div id="product-grid" class="product-grid">
                 <div class="add-product-card" onclick="openProductModal()"><div><i class="fas fa-plus-circle"></i> 新規商品追加</div></div>
@@ -106,25 +123,50 @@
         </div>
     </div>
 
+    <div id="bulk-modal" class="modal-overlay">
+        <div class="modal-content" style="width:600px;">
+            <h3>商品一括登録</h3>
+            <div class="helper-text">
+                以下のフォーマットで入力してください（1行に1件）:<br>
+                <strong>商品名 価格 カテゴリ [call]</strong><br>
+                ※区切りはスペース、タブ、カンマのいずれか<br>
+                ※末尾に "call" をつけるとコール対象になります<br>
+                例: <code>ドンペリニヨン 50000 Champagne call</code>
+            </div>
+            <textarea id="bulk-text" class="bulk-textarea" placeholder="アサヒスーパードライ 1000 Beer
+鏡月Green 5000 Shochu
+フルーツ盛り合わせ 10000 Food
+エンジェルシャンパン 100000 Champagne call"></textarea>
+            
+            <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+                <button type="button" class="btn-edit" style="width:auto;" onclick="closeBulkModal()">キャンセル</button>
+                <button type="button" class="btn-edit" style="background:var(--primary-color); color:white; border:none; width:auto;" onclick="submitBulk()">一括登録を実行</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { db } from '../assets/js/firebase-config.js';
-        import { collection, query, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { collection, query, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, getDocs, writeBatch, where } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         if (!tenantId) window.location.href = "../index.html";
 
         const grid = document.getElementById('product-grid');
         const modal = document.getElementById('prod-modal');
+        const bulkModal = document.getElementById('bulk-modal');
         const form = document.getElementById('prod-form');
         const catTabs = document.getElementById('category-tabs');
         const hasLinkCheck = document.getElementById('prod-has-link');
         const invSettings = document.getElementById('inventory-settings');
         const invSelect = document.getElementById('prod-linked-inv');
         const catSelect = document.getElementById('prod-category');
+        const btnDeleteCat = document.getElementById('btn-delete-cat');
+        const btnRenameCat = document.getElementById('btn-rename-cat');
 
         let products = [];
         let inventoryList = [];
-        let categories = ["Beer", "Brandy", "Champagne", "Shochu", "SoftDrink", "Food"];
+        let categories = []; // ★修正: 固定値を空にする
         let currentFilter = "All";
 
         async function init() {
@@ -137,9 +179,17 @@
             onSnapshot(q, (snapshot) => {
                 products = [];
                 snapshot.forEach(doc => { products.push({ id: doc.id, ...doc.data() }); });
-                const usedCats = new Set(categories);
+                
+                // ★修正: 商品データに基づいてカテゴリリストを再生成
+                const usedCats = new Set();
                 products.forEach(p => { if(p.category) usedCats.add(p.category); });
-                categories = Array.from(usedCats);
+                categories = Array.from(usedCats).sort();
+                
+                // もし現在の選択カテゴリが存在しなくなったらAllに戻す
+                if (currentFilter !== 'All' && !categories.includes(currentFilter)) {
+                    currentFilter = 'All';
+                }
+
                 updateCategoryTabs();
                 updateCategorySelect();
                 renderGrid();
@@ -149,6 +199,16 @@
         function renderGrid() {
             let displayList = currentFilter === "All" ? products : products.filter(p => p.category === currentFilter);
             displayList.sort((a, b) => (a.sortOrder || 999) - (b.sortOrder || 999));
+            
+            // カテゴリ操作ボタンの表示制御
+            if (currentFilter !== 'All') {
+                btnDeleteCat.style.display = 'block';
+                btnRenameCat.style.display = 'block';
+            } else {
+                btnDeleteCat.style.display = 'none';
+                btnRenameCat.style.display = 'none';
+            }
+
             grid.innerHTML = "";
             displayList.forEach(p => {
                 const div = document.createElement('div');
@@ -180,7 +240,78 @@
         }
 
         window.filterCategory = (cat) => { currentFilter = cat; updateCategoryTabs(); renderGrid(); };
-        window.addNewCategory = () => { const newCat = prompt("新しいカテゴリ名を入力してください"); if(newCat && !categories.includes(newCat)) { categories.push(newCat); filterCategory(newCat); } };
+        window.addNewCategory = () => { 
+            const newCat = prompt("新しいカテゴリ名を入力してください"); 
+            if(newCat && !categories.includes(newCat)) { 
+                // 商品を追加しないと永続化されないが、一時的にタブを追加して選択状態にする
+                categories.push(newCat); 
+                filterCategory(newCat); 
+                // 新規カテゴリで即商品追加できるようにする
+                openProductModal();
+            } 
+        };
+        
+        // カテゴリ一括削除機能
+        window.deleteCurrentCategory = async () => {
+            if (currentFilter === 'All') return;
+            if (!confirm(`カテゴリ「${currentFilter}」に含まれる全ての商品を削除しますか？\nこの操作は取り消せません。`)) return;
+
+            try {
+                const q = query(collection(db, "tenants", tenantId, "products"), where("category", "==", currentFilter));
+                const snapshot = await getDocs(q);
+                
+                const batch = writeBatch(db);
+                let count = 0;
+                snapshot.forEach(doc => {
+                    batch.delete(doc.ref);
+                    count++;
+                });
+
+                if (count > 0) {
+                    await batch.commit();
+                    alert(`${count}件の商品を削除しました。`);
+                    // onSnapshotが発火してUIは自動更新される
+                } else {
+                    // 商品が0件の場合（ありえないはずだが）、ローカルのみ更新して戻る
+                    categories = categories.filter(c => c !== currentFilter);
+                    filterCategory('All');
+                }
+            } catch(e) {
+                alert("削除エラー: " + e.message);
+            }
+        };
+
+        // カテゴリ名変更機能
+        window.renameCurrentCategory = async () => {
+            if (currentFilter === 'All') return;
+            const newName = prompt(`「${currentFilter}」の新しいカテゴリ名を入力してください:`, currentFilter);
+            
+            if (!newName || newName === currentFilter) return;
+            if (categories.includes(newName)) {
+                alert("そのカテゴリ名は既に存在します。統合する場合は手動で商品を移動してください。");
+                return;
+            }
+
+            try {
+                const q = query(collection(db, "tenants", tenantId, "products"), where("category", "==", currentFilter));
+                const snapshot = await getDocs(q);
+                const batch = writeBatch(db);
+                
+                snapshot.forEach(doc => {
+                    batch.update(doc.ref, { category: newName });
+                });
+
+                await batch.commit();
+                alert("カテゴリ名を変更しました");
+                
+                // onSnapshotで自動更新されるが、選択状態を引き継ぐために一時的に変数更新
+                currentFilter = newName;
+
+            } catch(e) {
+                alert("更新エラー: " + e.message);
+            }
+        };
+
         window.openProductModal = () => {
             form.reset(); document.getElementById('prod-id').value = ""; document.getElementById('modal-title').textContent = "商品登録";
             document.getElementById('btn-delete-prod').style.display = "none"; invSettings.style.display = 'none';
@@ -203,6 +334,67 @@
             invSelect.innerHTML = '<option value="">選択してください</option>';
             inventoryList.forEach(inv => { invSelect.innerHTML += `<option value="${inv.id}">${inv.name} (残:${inv.currentStock})</option>`; });
         }
+
+        // 一括登録機能
+        window.openBulkModal = () => { document.getElementById('bulk-text').value = ""; bulkModal.style.display = 'flex'; };
+        window.closeBulkModal = () => bulkModal.style.display = 'none';
+
+        window.submitBulk = async () => {
+            const text = document.getElementById('bulk-text').value;
+            const lines = text.split('\n');
+            const batch = writeBatch(db);
+            let count = 0;
+
+            for (const line of lines) {
+                const parts = line.trim().split(/[ \t,]+/); 
+                if (parts.length < 2) continue;
+
+                let isCall = false;
+                if (parts[parts.length - 1].toLowerCase() === 'call') {
+                    isCall = true;
+                    parts.pop();
+                }
+
+                let priceIndex = -1;
+                for (let i = parts.length - 1; i >= 0; i--) {
+                    if (!isNaN(Number(parts[i]))) {
+                        priceIndex = i;
+                        break;
+                    }
+                }
+
+                if (priceIndex === -1) continue;
+
+                const price = Number(parts[priceIndex]);
+                const name = parts.slice(0, priceIndex).join(' ');
+                const category = parts.slice(priceIndex + 1).join(' ') || "General";
+
+                if (name && !isNaN(price)) {
+                    const newRef = doc(collection(db, "tenants", tenantId, "products"));
+                    batch.set(newRef, {
+                        name: name,
+                        price: price,
+                        category: category,
+                        isCallTarget: isCall,
+                        sortOrder: 9999,
+                        createdAt: serverTimestamp()
+                    });
+                    count++;
+                }
+            }
+
+            if (count > 0) {
+                if(!confirm(`${count}件の商品を登録しますか？`)) return;
+                try {
+                    await batch.commit();
+                    alert("登録完了しました");
+                    closeBulkModal();
+                } catch(e) { alert("エラー: " + e.message); }
+            } else {
+                alert("有効なデータが見つかりませんでした。\nフォーマットを確認してください。");
+            }
+        };
+
 
         hasLinkCheck.onchange = () => { invSettings.style.display = hasLinkCheck.checked ? 'block' : 'none'; };
         document.getElementById('close-modal').onclick = () => modal.style.display = 'none';

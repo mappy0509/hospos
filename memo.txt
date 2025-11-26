@@ -1,154 +1,181 @@
+HOSPOS 開発・引き継ぎドキュメント (v1.4)
+🤖 AI開発者への指示
+あなたは現在、ホストクラブ専用POSシステム「HOSPOS」の開発を引き継ぐリードエンジニアです。 以下のプロジェクト概要、技術スタック、最新の進捗状況（v1.4）、および**「絶対的なルール」**を熟読し、文脈を完全に理解した上でサポートを行ってください。
 
+1. プロジェクト概要
+プロジェクト名: HOSPOS (Host Club POS System)
 
-# HOSPOS 開発・引き継ぎドキュメント (v1.3)
+目的: ホストクラブの業務（接客、注文、会計、勤怠、給与、分析）を一元管理するSaaS型アプリケーション。
 
-## 🤖 AI開発者への指示
+アーキテクチャ: マルチテナント型（1つのアプリで複数店舗が利用。データは店舗ごとに完全に分離）。
 
-あなたは現在、ホストクラブ専用POSシステム「HOSPOS」の開発を引き継ぐリードエンジニアです。
-以下のプロジェクト概要、技術スタック、最新の進捗状況（v1.3）、および**「絶対的なルール」**を熟読し、文脈を完全に理解した上でサポートを行ってください。
+2. 技術スタック・開発環境
+※重要：学習コストとデプロイの手軽さを優先し、以下の構成を厳守すること。
 
------
+Frontend: HTML5, CSS3, Vanilla JavaScript (ES Modules)
 
-## 1. プロジェクト概要
+禁止事項: React, Vue, TypeScript, Webpack/Viteなどのビルドツール使用は禁止。ブラウザで直接動く生のコードで記述する。
 
-* **プロジェクト名:** HOSPOS (Host Club POS System)
-* **目的:** ホストクラブの業務（接客、注文、会計、勤怠、給与、分析）を一元管理するSaaS型アプリケーション。
-* **アーキテクチャ:** マルチテナント型（1つのアプリで複数店舗が利用。データは店舗ごとに完全に分離）。
+Backend / DB: Firebase (v12.6.0) via CDN
 
-## 2. 技術スタック・開発環境
+Authentication (Email/Password)
 
-**※重要：学習コストとデプロイの手軽さを優先し、以下の構成を厳守すること。**
+Firestore (NoSQL Database)
 
-* **Frontend:** HTML5, CSS3, Vanilla JavaScript (ES Modules)
-    * **禁止事項:** React, Vue, TypeScript, Webpack/Viteなどのビルドツール使用は禁止。ブラウザで直接動く生のコードで記述する。
-* **Backend / DB:** Firebase (v12.6.0) via CDN
-    * Authentication (Email/Password)
-    * Firestore (NoSQL Database)
-* **Design:**
-    * **Admin (PC/Tablet):** サイドバーメニュー、ダッシュボード形式（スマホ対応レスポンシブ実装済）。
-    * **Cast (Smartphone):** モバイルファースト、ボトムナビゲーション、片手操作UI。
-* **Libraries (CDN):**
-    * FontAwesome (アイコン)
-    * Chart.js (売上分析)
-    * SortableJS (ドラッグ&ドロップ)
-    * QRCode.js (管理者側QR生成)
-    * html5-qrcode (キャスト側QR読み取り)
+Design:
 
-## 3. ディレクトリ構成 (v1.3 最新)
+Admin (PC/Tablet): サイドバーメニュー、ダッシュボード形式（スマホ対応レスポンシブ実装済）。
 
-```text
+Cast (Smartphone): モバイルファースト、ボトムナビゲーション、片手操作UI。
+
+Libraries (CDN):
+
+FontAwesome (アイコン)
+
+Chart.js (売上分析)
+
+SortableJS (ドラッグ&ドロップ)
+
+QRCode.js (管理者側QR生成)
+
+html5-qrcode (キャスト側QR読み取り)
+
+3. ディレクトリ構成 (v1.4 最新)
+Plaintext
+
 / (root)
   ├── index.html (ログイン)
   ├── register.html (店舗新規登録)
   ├── cast-register.html (キャスト招待登録)
   ├── /admin (管理者・内勤用)
-  │    ├── dashboard.html (★Update: 新規伝票・アイバン・顧客選択)
-  │    ├── slips.html (★Update: 担当キャスト名表示)
-  │    ├── slip-detail.html (★Update: 内勤用注文追加機能)
-  │    ├── call-management.html (コール管理)
+  │    ├── dashboard.html (★Update: リアルタイムタイマー修正・予想総額表示・顧客名編集)
+  │    ├── slips.html (★Update: 営業中の予想総額表示)
+  │    ├── slip-detail.html (★Update: 数量増減・削除・没電機能・顧客名編集)
+  │    ├── call-management.html (★Update: マイク担当[Main/Sub]記録)
   │    ├── shokai-control.html (初回・付け回し)
-  │    ├── products.html (商品・在庫連携)
+  │    ├── products.html (★Update: テキスト一括登録・カテゴリ削除/リネーム)
   │    ├── inventory.html (在庫管理)
-  │    ├── cast-list.html (★Update: 編集機能・ソート順修正)
-  │    ├── attendance.html (★Update: 手動打刻のステータス連動)
-  │    ├── schedule.html (イベント・定休日管理)
+  │    ├── cast-list.html (キャスト管理)
+  │    ├── attendance.html (★Update: 日付変更線またぎの自動退勤処理)
+  │    ├── schedule.html (★Update: テキスト一括登録)
   │    ├── salary.html (給与計算・明細管理)
-  │    ├── customers.html (全顧客管理)
+  │    ├── customers.html (★Update: 売上・来店回数・日付の自動集計表示)
   │    ├── sales-analysis.html (売上分析)
-  │    ├── ranking.html (リアルタイムランキング)
+  │    ├── ranking.html (★Update: マイク回数ランキング追加)
   │    ├── daily-report.html (日報生成)
-  │    └── settings.html (★Update: テーブル設定タブ追加)
+  │    └── settings.html (店舗設定)
   ├── /cast (キャスト・ホスト用)
   │    ├── home.html (出勤/退勤・QRスキャン・お知らせ)
-  │    ├── order.html (★Update: アイバン選択・顧客リスト選択)
-  │    ├── menu.html (注文・カート)
-  │    ├── my-customers.html (マイ顧客リスト)
+  │    ├── order.html (入店処理・相席)
+  │    ├── menu.html (★Update: 注文履歴確認・変更・キャンセル機能)
+  │    ├── my-customers.html (★Update: 担当顧客の売上・来店統計表示)
   │    └── profile.html (売上確認・設定)
   └── /assets
-       ├── /css (style.css) (★Update: Adminモバイル対応)
+       ├── /css (style.css)
        └── /js
             ├── firebase-config.js (初期化設定)
             ├── utils.js (日付計算・営業日判定)
             └── salary-calculator.js (給与計算ロジッククラス)
-````
+4. データベース設計 (Firestore)
+鉄の掟: 全てのデータは tenants/{tenantId}/ の配下に置くこと。
 
-## 4\. データベース設計 (Firestore)
+ルート: tenants (Collection) -> ドキュメント: {tenantId}
 
-**鉄の掟:** 全てのデータは `tenants/{tenantId}/` の配下に置くこと。
+users: 従業員 (role, currentStatus, dailyWage 等)
 
-  * **ルート:** `tenants` (Collection) -\> ドキュメント: `{tenantId}`
-      * `users`: 従業員 (`role`, `currentStatus`, `dailyWage` 等)
-      * `products`: 商品マスタ
-      * `inventory`: 在庫マスタ
-      * `slips`: 伝票
-          * **Fields:** `primaryCastId`, `primaryCastName`(★New), `slipNumber`, `businessDate`, `status`('active'|'paid'|'void'), `visitType`('shime'|'free'|'eda')
-          * `orders`: 注文サブコレクション
-      * `customers`: 顧客情報 (`assignedCastId`)
-      * `attendance`: 打刻ログ
-      * `events`: イベント・定休日
-      * `salaries`: 給与明細
-      * `counters`: 日別連番管理
-      * `system`: システム制御 (`qr`)
-      * `config`: 店舗設定 (Map)
-          * `tables`: (★New) テーブル名配列 `["T1", "VIP", ...]`
-          * `businessDay`: 営業日設定
-          * `salary`: 給与設定
-          * `callGrades`: コール設定
+products: 商品マスタ
 
-## 5\. 実装済み機能と詳細ロジック (v1.3)
+inventory: 在庫マスタ
 
-### A. 伝票・入店管理 (Entry Management)
+slips: 伝票
 
-  * **顧客管理強化:**
-      * 指名（`shime`）で入店する際、必ず担当キャストに紐づく\*\*既存顧客リスト（ドロップダウン）\*\*から選択させる。
-      * 新規客の場合のみ名前入力を許可し、**伝票作成と同時に顧客マスタへ自動登録**する（二重登録防止）。
-      * キャスト画面では、自分の顧客のみがリストに表示される。
-  * **アイバン（相席）対応:**
-      * 既に使用中のテーブル（Status: active）を選択可能。
-      * 選択時、「既存の伝票を開く」か「**相席で新規伝票を作る（アイバン）**」かを選択できるUIを実装。
-  * **枝（Eda）:**
-      * 名称を「枝/場内」から「枝」に統一。担当選択は任意。
+Fields: primaryCastId, primaryCastName, customerName, status('active'|'paid'|'void'), visitType, totalAmount, callBatchAmount
 
-### B. 管理者・内勤機能 (Admin)
+orders: 注文サブコレクション
 
-  * **ダッシュボード:**
-      * 内勤が「新規伝票」を作成可能（空席/相席選択、指名キャスト・顧客選択）。
-      * **テーブル設定反映:** `settings.html` で登録されたテーブル名を動的に読み込んで表示。
-  * **伝票詳細:**
-      * **注文追加:** 内勤が詳細画面から商品を追加オーダーできる機能を追加。
-  * **キャスト管理:**
-      * 一覧の「編集ボタン」実装済み（名前・役職・ステータス変更）。
-      * 並び順を「登録日の古い順（古参が上）」に変更。
-  * **出勤管理:**
-      * 内勤による手動打刻時、対象ユーザーの `currentStatus` も同期して更新する（キャスト側のロック解除即時反映）。
+customers: 顧客情報 (assignedCastId)
 
-### C. キャスト機能 (Cast)
+attendance: 打刻ログ (type: 'in'|'out', note: '自動退勤'等)
 
-  * **セキュリティ:** 退勤中（`currentStatus == 'off'`）は注文機能をロック。
-  * **顧客リスト:** 入店処理で新規登録された顧客は、即座に `my-customers.html` および次回の入店選択リストに反映される。
+events: イベント・定休日
 
-### D. 設定・システム (Settings)
+salaries: 給与明細
 
-  * **テーブル管理:** `settings.html` にテーブル設定タブを追加。テーブル名の追加・削除・編集が可能。
-  * **営業日:** `assets/js/utils.js` の `getBusinessDate()` で日付変更線（Cutoff Hour）を考慮した集計を実施。
+call_logs: (★New) コール履歴 (castId, role: 'main'|'sub')
 
-## 6\. 開発における絶対ルール (Do's & Don'ts)
+counters: 日別連番管理
 
-1.  **インデックスエラーの回避:**
-      * Firestoreの複合クエリ（where と orderBy の併用）は極力避ける。
-      * **対策:** 基本的に `where` だけでデータを取得し、並び替え（Sort）や期間フィルタは JavaScript (Array.sort, filter) で行うこと。
-2.  **1ページ1ファイル:**
-      * メンテナンス性を高めるため、SPAにはしない。HTMLファイルごとに完結させる。
-3.  **Firebase SDK:**
-      * v12.6.0 (Modular Web SDK) を使用。
+system: システム制御 (qr)
 
-## 7\. 次のタスク / 今後の展望
+config: 店舗設定 (Map)
 
-v1.3で、現場の運用（アイバン、内勤業務、顧客管理）に即した機能改修が完了しました。
-今後は以下の作業が想定されます。
+5. 実装済み機能と詳細ロジック (v1.4)
+A. 伝票・注文管理 (Order Management)
+柔軟な注文操作:
 
-  * **売掛金管理の強化:** 現在は簡易的な「未回収額」の表示のみ。回収履歴（入金消込）の管理機能の実装。
-  * **セット料金の自動計算:** 時間経過によるセット料金の自動加算ロジック（現在は手動入力または商品として追加）。
-  * **UI/UX:** スマホでの操作性のさらなる向上。
+admin/slip-detail.html および cast/menu.html にて、注文済み商品の**数量変更（＋／－）と削除（キャンセル）**が可能。
+
+変更に合わせて、在庫連携やコール残高、伝票総額がリアルタイムに再計算される。
+
+伝票作成後でも顧客名の編集が可能。
+
+金額表示の改善:
+
+一覧画面やダッシュボードにて、営業中（未会計）の伝票でも、設定された税・サービス料を加味した**「予想総額」**を表示。
+
+B. 勤怠管理 (Attendance)
+自動退勤機能:
+
+管理画面（attendance.html）を開いた際、日付変更線（Cutoff Hour）をまたいで出勤状態のままのキャストを検知し、自動的に退勤処理を行うロジックを実装。
+
+C. データ一括登録・管理 (Bulk Operations)
+スケジュール: テキストボックスに「日付 タイトル 種類」を貼り付けて一括登録可能。
+
+商品メニュー: テキストボックスに「商品名 価格 カテゴリ [call]」を貼り付けて一括登録可能。
+
+カテゴリ管理: カテゴリ名を変更する機能、およびカテゴリ内の全商品を一括削除する機能（タブも連動して消去）を実装。
+
+D. 統計・分析 (Analytics)
+顧客分析:
+
+管理者およびキャストの顧客リストにて、累計売上、今月売上、総来店回数、今月来店回数、初回来店日、最終来店日を自動集計して表示。
+
+キャスト画面では、自分の担当顧客かつ会計済みのデータのみを集計（セキュリティ配慮）。
+
+コール・マイク管理:
+
+コール完了時に「メインマイク」「サブマイク」の担当者を選択・記録。
+
+ランキング画面に**「マイク回数ランキング」**を追加し、貢献度を可視化。
+
+6. 開発における絶対ルール (Do's & Don'ts)
+インデックスエラーの回避:
+
+Firestoreの複合クエリ（where と orderBy の併用）は極力避ける。
+
+対策: 基本的に where だけでデータを取得し、並び替え（Sort）や期間フィルタは JavaScript (Array.sort, filter) で行うこと。
+
+1ページ1ファイル:
+
+メンテナンス性を高めるため、SPAにはしない。HTMLファイルごとに完結させる。
+
+Firebase SDK:
+
+v12.6.0 (Modular Web SDK) を使用。
+
+7. 次のタスク / 今後の展望
+v1.4で、現場からの要望（修正機能、一括登録、統計表示）を大幅に取り込みました。 今後は以下の作業が想定されます。
+
+売掛金管理の強化:
+
+回収履歴（入金消込）の管理機能の実装。credit_logs コレクションの新設を検討。
+
+セット料金の自動計算:
+
+時間経過によるセット料金の自動加算ロジック（現在は手動入力または商品として追加）。
+
+UI/UX:
+
+スマホでの操作性のさらなる向上（スワイプ操作など）。
 
 以上の内容を前提として、開発サポートを開始してください。

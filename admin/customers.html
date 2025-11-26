@@ -17,12 +17,27 @@
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .search-bar { display: flex; gap: 10px; background: white; padding: 10px; border-radius: 8px; box-shadow: var(--shadow-sm); }
         .search-input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 250px; }
-        .customer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .cust-card { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); border-top: 4px solid #6c757d; cursor: pointer; transition: 0.2s; }
-        .cust-card:hover { transform: translateY(-3px); }
-        .cust-name { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; }
-        .cust-meta { font-size: 0.85rem; color: #666; margin-bottom: 10px; }
-        .cust-cast { background: #e6f2ff; color: var(--primary-color); padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; display: inline-block; }
+        .customer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        
+        .cust-card { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); border-top: 4px solid #6c757d; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; gap: 8px; }
+        .cust-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+        
+        .cust-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .cust-name { font-size: 1.3rem; font-weight: bold; color: var(--text-main); }
+        .cust-cast { background: #e6f2ff; color: var(--primary-color); padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; display: inline-block; }
+        
+        .cust-meta { font-size: 0.85rem; color: #666; display: flex; gap: 10px; }
+        .cust-note-preview { font-size: 0.85rem; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; border-top: 1px dashed #eee; padding-top: 5px; margin-top: 5px;}
+
+        /* 統計データエリア */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f8f9fa; padding: 10px; border-radius: 8px; margin-top: 5px; }
+        .stat-item { display: flex; flex-direction: column; }
+        .stat-label { font-size: 0.7rem; color: #666; }
+        .stat-val { font-size: 0.95rem; font-weight: bold; color: #333; }
+        .val-high { color: var(--primary-color); }
+        
+        .date-info { display: flex; justify-content: space-between; font-size: 0.75rem; color: #999; margin-top: 5px; }
+
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; max-width: 95%; box-shadow: var(--shadow-lg); }
         .form-group { margin-bottom: 15px; }
@@ -99,10 +114,13 @@
         const form = document.getElementById('cust-form');
         const castSelect = document.getElementById('cust-cast');
         const searchInput = document.getElementById('search-input');
+        
         let allCustomers = [];
         let casts = {};
+        let customerStats = {}; // { customerName: { totalSales, monthSales, totalVisits, monthVisits, firstDate, lastDate } }
 
         async function init() {
+            // 1. キャスト一覧取得
             const qCast = query(collection(db, "tenants", tenantId, "users"), where("role", "==", "cast"));
             const snap = await getDocs(qCast);
             castSelect.innerHTML = '<option value="">担当なし (フリー)</option>';
@@ -110,15 +128,94 @@
                 casts[doc.id] = doc.data().name;
                 castSelect.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
             });
+
+            // 2. 売上データの集計 (全期間の会計済み伝票を取得)
+            await calculateCustomerStats();
+
+            // 3. 顧客リストのリアルタイム監視開始
             startCustomerListener();
+        }
+
+        // 売上・来店データの集計処理
+        async function calculateCustomerStats() {
+            try {
+                // 会計済み('paid')の伝票のみ取得
+                const qSlips = query(collection(db, "tenants", tenantId, "slips"), where("status", "==", "paid"));
+                const slipSnap = await getDocs(qSlips);
+
+                const now = new Date();
+                const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+
+                customerStats = {};
+
+                slipSnap.forEach(doc => {
+                    const s = doc.data();
+                    const name = s.customerName;
+                    if (!name) return;
+
+                    // 初期化
+                    if (!customerStats[name]) {
+                        customerStats[name] = {
+                            totalSales: 0,
+                            monthSales: 0,
+                            totalVisits: 0,
+                            monthVisits: 0,
+                            firstDate: null,
+                            lastDate: null
+                        };
+                    }
+
+                    const stats = customerStats[name];
+                    const amount = s.totalAmount || 0;
+                    
+                    // 日付処理
+                    let visitDate = null;
+                    if (s.businessDate) {
+                         visitDate = new Date(s.businessDate); // YYYY-MM-DD string -> Date
+                    } else if (s.startTime) {
+                        visitDate = s.startTime.toDate();
+                    }
+
+                    if (visitDate) {
+                        // 累計・今月集計
+                        stats.totalSales += amount;
+                        stats.totalVisits += 1;
+
+                        const visitMonth = `${visitDate.getFullYear()}-${String(visitDate.getMonth() + 1).padStart(2, '0')}`;
+                        if (visitMonth === currentMonthPrefix) {
+                            stats.monthSales += amount;
+                            stats.monthVisits += 1;
+                        }
+
+                        // 初来店・最終来店更新
+                        const timeVal = visitDate.getTime();
+                        if (!stats.firstDate || timeVal < stats.firstDate.getTime()) {
+                            stats.firstDate = visitDate;
+                        }
+                        if (!stats.lastDate || timeVal > stats.lastDate.getTime()) {
+                            stats.lastDate = visitDate;
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error("Stats Calculation Error:", error);
+            }
         }
 
         function startCustomerListener() {
             const q = query(collection(db, "tenants", tenantId, "customers"));
             onSnapshot(q, (snapshot) => {
                 allCustomers = [];
-                if(snapshot.empty) { listContainer.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:30px; color:#999;">顧客データがありません</div>`; return; }
+                if(snapshot.empty) { 
+                    listContainer.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:30px; color:#999;">顧客データがありません</div>`; 
+                    return; 
+                }
                 snapshot.forEach(doc => { allCustomers.push({ id: doc.id, ...doc.data() }); });
+                
+                // 名前順にソート（読み仮名がないので漢字コード順）
+                allCustomers.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+                
                 renderCustomers();
             });
         }
@@ -130,36 +227,99 @@
                 const castName = (casts[c.assignedCastId] || "").toLowerCase();
                 return name.includes(term) || castName.includes(term);
             });
+
             listContainer.innerHTML = "";
             filtered.forEach(c => {
                 const castName = casts[c.assignedCastId] || "フリー";
+                
+                // 統計データの取得
+                const stats = customerStats[c.name] || {
+                    totalSales: 0, monthSales: 0, totalVisits: 0, monthVisits: 0, firstDate: null, lastDate: null
+                };
+
+                // 日付フォーマット
+                const formatDate = (d) => d ? `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}` : "-";
+                const firstStr = formatDate(stats.firstDate);
+                const lastStr = formatDate(stats.lastDate);
+
                 const div = document.createElement('div');
                 div.className = "cust-card";
-                div.innerHTML = `<div class="cust-name">${c.name}</div><div class="cust-meta">${c.age ? c.age + "歳" : ""} ${c.job ? "/ " + c.job : ""}</div><div class="cust-cast"><i class="fas fa-user-tie"></i> ${castName}</div><div style="margin-top:10px; font-size:0.85rem; color:#555; white-space:pre-wrap;">${c.notes || "備考なし"}</div>`;
+                div.innerHTML = `
+                    <div class="cust-header">
+                        <div class="cust-name">${c.name}</div>
+                        <div class="cust-cast"><i class="fas fa-user-tie"></i> ${castName}</div>
+                    </div>
+                    <div class="cust-meta">
+                        <span><i class="fas fa-birthday-cake"></i> ${c.age ? c.age + "歳" : "-"}</span>
+                        <span><i class="fas fa-briefcase"></i> ${c.job || "-"}</span>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">今月売上 / 累計売上</span>
+                            <span class="stat-val val-high">¥${stats.monthSales.toLocaleString()} / ¥${stats.totalSales.toLocaleString()}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">今月来店 / 累計来店</span>
+                            <span class="stat-val">${stats.monthVisits}回 / ${stats.totalVisits}回</span>
+                        </div>
+                    </div>
+                    <div class="date-info">
+                        <span>初: ${firstStr}</span>
+                        <span>終: ${lastStr}</span>
+                    </div>
+
+                    <div class="cust-note-preview">${c.notes || "メモなし"}</div>
+                `;
                 div.onclick = () => editCustomer(c.id);
                 listContainer.appendChild(div);
             });
         }
 
         searchInput.addEventListener('input', renderCustomers);
+        
         window.openModal = () => {
             form.reset(); document.getElementById('cust-id').value = ""; document.getElementById('modal-title').textContent = "顧客登録";
             modal.style.display = 'flex';
         };
+        
         window.editCustomer = (id) => {
             const c = allCustomers.find(i => i.id === id); if(!c) return;
-            document.getElementById('cust-id').value = c.id; document.getElementById('cust-name').value = c.name;
-            document.getElementById('cust-cast').value = c.assignedCastId || ""; document.getElementById('cust-age').value = c.age || "";
-            document.getElementById('cust-job').value = c.job || ""; document.getElementById('cust-notes').value = c.notes || "";
-            document.getElementById('modal-title').textContent = "顧客編集"; modal.style.display = 'flex';
+            document.getElementById('cust-id').value = c.id; 
+            document.getElementById('cust-name').value = c.name;
+            document.getElementById('cust-cast').value = c.assignedCastId || ""; 
+            document.getElementById('cust-age').value = c.age || "";
+            document.getElementById('cust-job').value = c.job || ""; 
+            document.getElementById('cust-notes').value = c.notes || "";
+            document.getElementById('modal-title').textContent = "顧客編集"; 
+            modal.style.display = 'flex';
         };
+        
         window.closeModal = () => modal.style.display = 'none';
+        
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('cust-id').value;
-            const data = { name: document.getElementById('cust-name').value, assignedCastId: document.getElementById('cust-cast').value, age: document.getElementById('cust-age').value, job: document.getElementById('cust-job').value, notes: document.getElementById('cust-notes').value, lastUpdated: serverTimestamp() };
-            try { if(id) await updateDoc(doc(db, "tenants", tenantId, "customers", id), data); else await addDoc(collection(db, "tenants", tenantId, "customers"), { ...data, createdAt: serverTimestamp() }); closeModal(); } catch(e) { alert("エラー: " + e.message); }
+            const data = { 
+                name: document.getElementById('cust-name').value, 
+                assignedCastId: document.getElementById('cust-cast').value, 
+                age: document.getElementById('cust-age').value, 
+                job: document.getElementById('cust-job').value, 
+                notes: document.getElementById('cust-notes').value, 
+                lastUpdated: serverTimestamp() 
+            };
+            try { 
+                if(id) await updateDoc(doc(db, "tenants", tenantId, "customers", id), data); 
+                else await addDoc(collection(db, "tenants", tenantId, "customers"), { ...data, createdAt: serverTimestamp() }); 
+                
+                // 名前が変わった場合など再集計が必要かもしれないが、簡易的にリロード推奨または再集計関数呼び出し
+                await calculateCustomerStats(); 
+                renderCustomers();
+                
+                closeModal(); 
+            } catch(e) { alert("エラー: " + e.message); }
         });
+        
         init();
     </script>
 </body>

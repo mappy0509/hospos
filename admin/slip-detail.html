@@ -15,9 +15,16 @@
         /* 左側：注文リスト */
         .order-section { flex: 2; background: white; border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
         .order-list { flex: 1; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; margin-top: 15px; }
-        .order-item { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; padding: 12px; border-bottom: 1px solid #eee; align-items: center; }
-        .order-header { background: #f8f9fa; font-weight: bold; color: #666; position: sticky; top: 0; }
+        .order-item { display: grid; grid-template-columns: 3fr 1fr 1.5fr 1fr; padding: 12px; border-bottom: 1px solid #eee; align-items: center; font-size: 0.95rem; }
+        .order-header { background: #f8f9fa; font-weight: bold; color: #666; position: sticky; top: 0; z-index: 5; }
         
+        /* 数量操作コントロール */
+        .qty-control { display: flex; align-items: center; gap: 5px; }
+        .btn-qty { width: 28px; height: 28px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--primary-color); }
+        .btn-qty:hover { background: #f0f8ff; }
+        .btn-del { color: #dc3545; border: none; background: none; cursor: pointer; margin-left: 5px; font-size: 1rem; }
+        .btn-del:hover { opacity: 0.7; }
+
         /* 右側：会計パネル */
         .payment-section { flex: 1.2; background: white; border-radius: 12px; padding: 25px; box-shadow: var(--shadow-sm); height: fit-content; position: sticky; top: 30px; }
         .calc-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; }
@@ -40,11 +47,22 @@
 
         /* モーダル系 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; max-width: 95%; max-height: 80vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
-        .prod-select-list { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
-        .prod-option { padding: 10px; border: 1px solid #eee; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 600px; max-width: 95%; max-height: 85vh; overflow-y: auto; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
+        
+        /* 一括注文用スタイル */
+        .prod-select-list { flex: 1; overflow-y: auto; max-height: 250px; border: 1px solid #eee; border-radius: 6px; margin-top: 10px; }
+        .prod-option { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .prod-option:hover { background: #f8f9fa; }
-        .prod-option.selected { border-color: var(--primary-color); background: #e6f2ff; }
+        .btn-add-mini { padding: 5px 12px; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        
+        .pending-section { margin-top: 20px; border-top: 2px solid #f0f0f0; padding-top: 15px; }
+        .pending-list { max-height: 200px; overflow-y: auto; background: #f9f9f9; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+        .pending-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #ddd; font-size: 0.9rem; }
+        .pending-total { text-align: right; font-weight: bold; font-size: 1.1rem; color: var(--text-main); }
+
+        /* 顧客編集 */
+        .edit-btn-sm { background: none; border: none; color: #999; cursor: pointer; margin-left: 5px; }
+        .edit-btn-sm:hover { color: var(--primary-color); }
 
         @media print {
             body * { visibility: hidden; }
@@ -68,12 +86,15 @@
         <div class="main-content">
             <div class="order-section">
                 <h2 id="table-title">Table: ...</h2>
-                <p id="customer-name" style="color:#666; margin-bottom:10px;">...</p>
+                <p style="margin-bottom:10px;">
+                    <span id="customer-name" style="color:#666;">...</span>
+                    <button class="edit-btn-sm" onclick="editCustomerName()"><i class="fas fa-pen"></i></button>
+                </p>
                 
                 <div class="order-item order-header">
                     <div>商品名</div>
                     <div>単価</div>
-                    <div>数量</div>
+                    <div>数量/操作</div>
                     <div>小計</div>
                 </div>
                 <div id="order-list-container" class="order-list"></div>
@@ -122,19 +143,22 @@
 
     <div id="add-order-modal" class="modal-overlay">
         <div class="modal-content">
-            <h3>商品追加</h3>
-            <input type="text" id="prod-search" placeholder="商品名で検索..." style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px;">
+            <h3 style="margin-bottom:15px;">商品追加 (一括)</h3>
+            
+            <input type="text" id="prod-search" placeholder="商品名で検索..." style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
             <div id="prod-list" class="prod-select-list">読み込み中...</div>
             
-            <div style="margin-top:20px; border-top:1px solid #eee; padding-top:15px;">
-                <label style="font-weight:bold;">数量: </label>
-                <input type="number" id="new-order-qty" value="1" min="1" style="width:60px; padding:5px; text-align:center;">
-                <span id="selected-prod-name" style="margin-left:10px; font-weight:bold; color:var(--primary-color);"></span>
+            <div class="pending-section">
+                <h4 style="font-size:0.9rem; margin-bottom:5px;">追加予定リスト</h4>
+                <div id="pending-list" class="pending-list">
+                    <div style="text-align:center; color:#999; padding:20px;">選択された商品はありません</div>
+                </div>
+                <div class="pending-total">追加合計: <span id="pending-total-val">¥0</span></div>
             </div>
 
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button class="btn-checkout" id="do-add-btn" disabled onclick="submitNewOrder()">追加する</button>
+            <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
                 <button class="btn-sub" onclick="document.getElementById('add-order-modal').style.display='none'">閉じる</button>
+                <button class="btn-checkout" id="do-add-btn" disabled onclick="submitPendingOrders()">注文を確定する</button>
             </div>
         </div>
     </div>
@@ -155,7 +179,7 @@
 
     <script type="module">
         import { db } from '../assets/js/firebase-config.js';
-        import { doc, getDoc, collection, getDocs, updateDoc, addDoc, serverTimestamp, increment, writeBatch } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { doc, getDoc, collection, getDocs, updateDoc, addDoc, deleteDoc, serverTimestamp, increment, writeBatch, runTransaction, orderBy } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         const params = new URLSearchParams(window.location.search);
@@ -167,7 +191,7 @@
         let tenantInfo = {};
         let currentOrders = [];
         let allProducts = [];
-        let selectedProduct = null;
+        let pendingCart = []; // 追加予定の商品リスト
         let calcResult = { grandTotal: 0 };
 
         // UI Elements
@@ -191,7 +215,7 @@
                 document.getElementById('rate-tax').textContent = config.tax;
             }
             loadSlip();
-            loadProducts(); // 商品マスタ読み込み
+            loadProducts();
         }
 
         async function loadSlip() {
@@ -203,9 +227,9 @@
             document.getElementById('table-title').textContent = `Table: ${slipData.tableId}`;
             document.getElementById('customer-name').textContent = slipData.customerName;
 
-            const oSnap = await getDocs(collection(sRef, "orders"));
+            const oSnap = await getDocs(collection(sRef, "orders"), orderBy("createdAt", "asc"));
             currentOrders = [];
-            oSnap.forEach(d => currentOrders.push(d.data()));
+            oSnap.forEach(d => currentOrders.push({ id: d.id, ...d.data() }));
             renderOrders();
             calculateBill();
         }
@@ -215,11 +239,78 @@
             container.innerHTML = "";
             currentOrders.forEach(o => {
                 const sub = o.price * o.quantity;
-                container.innerHTML += `<div class="order-item"><div>${o.name}</div><div>¥${o.price.toLocaleString()}</div><div>x${o.quantity}</div><div style="font-weight:bold;">¥${sub.toLocaleString()}</div></div>`;
+                const div = document.createElement('div');
+                div.className = "order-item";
+                div.innerHTML = `
+                    <div>${o.name}</div>
+                    <div>¥${o.price.toLocaleString()}</div>
+                    <div class="qty-control">
+                        <button class="btn-qty" onclick="updateOrderQty('${o.id}', -1)">-</button>
+                        <span style="width:20px; text-align:center;">${o.quantity}</span>
+                        <button class="btn-qty" onclick="updateOrderQty('${o.id}', 1)">+</button>
+                        <button class="btn-del" onclick="removeOrder('${o.id}')"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                    <div style="font-weight:bold;">¥${sub.toLocaleString()}</div>
+                `;
+                container.appendChild(div);
             });
         }
 
-        // 商品リスト読み込み
+        // 注文の数量変更 (+/-)
+        window.updateOrderQty = async (orderId, change) => {
+            const order = currentOrders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            const newQty = order.quantity + change;
+            if (newQty <= 0) {
+                if(confirm("この商品を削除しますか？")) removeOrder(orderId);
+                return;
+            }
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const slipRef = doc(db, "tenants", tenantId, "slips", slipId);
+                    const orderRef = doc(db, "tenants", tenantId, "slips", slipId, "orders", orderId);
+                    
+                    const diff = order.price * change;
+                    const callDiff = order.isCallTarget ? diff : 0;
+
+                    transaction.update(orderRef, { quantity: newQty });
+                    transaction.update(slipRef, {
+                        totalAmount: increment(diff),
+                        callBatchAmount: increment(callDiff),
+                        lastUpdated: serverTimestamp()
+                    });
+                });
+                loadSlip();
+            } catch(e) { console.error(e); alert("更新エラー: " + e.message); }
+        };
+
+        // 注文の削除
+        window.removeOrder = async (orderId) => {
+            const order = currentOrders.find(o => o.id === orderId);
+            if (!order) return;
+            if (!confirm(`「${order.name}」を伝票から削除しますか？`)) return;
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const slipRef = doc(db, "tenants", tenantId, "slips", slipId);
+                    const orderRef = doc(db, "tenants", tenantId, "slips", slipId, "orders", orderId);
+                    
+                    const diff = -(order.price * order.quantity);
+                    const callDiff = order.isCallTarget ? diff : 0;
+
+                    transaction.delete(orderRef);
+                    transaction.update(slipRef, {
+                        totalAmount: increment(diff),
+                        callBatchAmount: increment(callDiff),
+                        lastUpdated: serverTimestamp()
+                    });
+                });
+                loadSlip();
+            } catch(e) { console.error(e); alert("削除エラー: " + e.message); }
+        };
+
         async function loadProducts() {
             const q = collection(db, "tenants", tenantId, "products");
             const snap = await getDocs(q);
@@ -227,8 +318,26 @@
             snap.forEach(doc => allProducts.push({ id: doc.id, ...doc.data() }));
         }
 
-        // モーダル表示・商品検索
+        // --- 顧客名編集機能 ---
+        window.editCustomerName = async () => {
+            const currentName = document.getElementById('customer-name').textContent;
+            const newName = prompt("お客様名を変更:", currentName);
+            if(newName && newName !== currentName) {
+                try {
+                    await updateDoc(doc(db, "tenants", tenantId, "slips", slipId), {
+                        customerName: newName
+                    });
+                    document.getElementById('customer-name').textContent = newName;
+                } catch(e) {
+                    alert("更新エラー: " + e.message);
+                }
+            }
+        };
+
+        // --- 一括注文機能 ---
         window.openAddOrderModal = () => {
+            pendingCart = []; // リセット
+            renderPendingList();
             document.getElementById('add-order-modal').style.display = 'flex';
             renderProductList("");
         };
@@ -243,50 +352,106 @@
             filtered.forEach(p => {
                 const div = document.createElement('div');
                 div.className = "prod-option";
-                div.innerHTML = `<span>${p.name}</span><span style="font-weight:bold;">¥${Number(p.price).toLocaleString()}</span>`;
-                div.onclick = () => selectProduct(p, div);
+                div.innerHTML = `
+                    <div style="flex:1;">
+                        <div style="font-weight:bold;">${p.name}</div>
+                        <div style="font-size:0.8rem; color:#666;">¥${Number(p.price).toLocaleString()}</div>
+                    </div>
+                    <button class="btn-add-mini" onclick="addToPending('${p.id}')">追加</button>
+                `;
                 container.appendChild(div);
             });
         }
 
-        function selectProduct(prod, el) {
-            selectedProduct = prod;
-            document.querySelectorAll('.prod-option').forEach(e => e.classList.remove('selected'));
-            el.classList.add('selected');
-            document.getElementById('selected-prod-name').textContent = prod.name;
+        window.addToPending = (prodId) => {
+            const product = allProducts.find(p => p.id === prodId);
+            if (!product) return;
+            
+            const existing = pendingCart.find(item => item.id === prodId);
+            if (existing) {
+                existing.qty++;
+            } else {
+                pendingCart.push({ ...product, qty: 1 });
+            }
+            renderPendingList();
+        };
+
+        function renderPendingList() {
+            const container = document.getElementById('pending-list');
+            const totalEl = document.getElementById('pending-total-val');
+            container.innerHTML = "";
+            
+            if (pendingCart.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">選択された商品はありません</div>';
+                totalEl.textContent = "¥0";
+                document.getElementById('do-add-btn').disabled = true;
+                return;
+            }
+
+            let total = 0;
+            pendingCart.forEach((item, index) => {
+                const sub = item.price * item.qty;
+                total += sub;
+                const div = document.createElement('div');
+                div.className = "pending-item";
+                div.innerHTML = `
+                    <span style="flex:1; font-weight:bold;">${item.name}</span>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <input type="number" value="${item.qty}" min="1" style="width:50px; padding:5px; border:1px solid #ddd; border-radius:4px;" onchange="updatePendingQty(${index}, this.value)">
+                        <span style="width:80px; text-align:right;">¥${sub.toLocaleString()}</span>
+                        <button onclick="removeFromPending(${index})" style="color:red; border:none; background:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            totalEl.textContent = `¥${total.toLocaleString()}`;
             document.getElementById('do-add-btn').disabled = false;
         }
 
-        // 注文追加実行
-        window.submitNewOrder = async () => {
-            if(!selectedProduct) return;
-            const qty = Number(document.getElementById('new-order-qty').value);
-            if(qty < 1) return;
+        window.updatePendingQty = (index, val) => {
+            const qty = parseInt(val);
+            if (qty > 0) pendingCart[index].qty = qty;
+            renderPendingList();
+        };
 
+        window.removeFromPending = (index) => {
+            pendingCart.splice(index, 1);
+            renderPendingList();
+        };
+
+        // 一括注文確定
+        window.submitPendingOrders = async () => {
+            if (pendingCart.length === 0) return;
             const btn = document.getElementById('do-add-btn');
             btn.disabled = true; btn.textContent = "処理中...";
 
             try {
                 const batch = writeBatch(db);
                 const slipRef = doc(db, "tenants", tenantId, "slips", slipId);
-                const newOrderRef = doc(collection(db, "tenants", tenantId, "slips", slipId, "orders"));
                 
-                const lineTotal = selectedProduct.price * qty;
-                const callAdd = selectedProduct.isCallTarget ? lineTotal : 0;
+                let totalAdd = 0;
+                let callAdd = 0;
 
-                batch.set(newOrderRef, {
-                    name: selectedProduct.name,
-                    price: Number(selectedProduct.price),
-                    quantity: qty,
-                    productId: selectedProduct.id,
-                    orderedBy: 'admin', // 内勤追加
-                    status: 'served',
-                    createdAt: serverTimestamp(),
-                    isCallTarget: selectedProduct.isCallTarget || false
-                });
+                for (const item of pendingCart) {
+                    const newOrderRef = doc(collection(db, "tenants", tenantId, "slips", slipId, "orders"));
+                    const lineTotal = item.price * item.qty;
+                    totalAdd += lineTotal;
+                    if (item.isCallTarget) callAdd += lineTotal;
+
+                    batch.set(newOrderRef, {
+                        name: item.name,
+                        price: Number(item.price),
+                        quantity: item.qty,
+                        productId: item.id,
+                        orderedBy: 'admin',
+                        status: 'served',
+                        createdAt: serverTimestamp(),
+                        isCallTarget: item.isCallTarget || false
+                    });
+                }
 
                 batch.update(slipRef, {
-                    totalAmount: increment(lineTotal),
+                    totalAmount: increment(totalAdd),
                     callBatchAmount: increment(callAdd),
                     lastUpdated: serverTimestamp()
                 });
@@ -294,8 +459,9 @@
                 await batch.commit();
                 
                 document.getElementById('add-order-modal').style.display = 'none';
-                btn.textContent = "追加する";
+                btn.textContent = "注文を確定する";
                 loadSlip(); // 再読み込み
+                
             } catch(e) {
                 console.error(e); alert("追加エラー"); btn.disabled = false;
             }
@@ -364,6 +530,19 @@
                     debtAmount: calcResult.debt
                 });
                 alert("会計完了"); window.location.href = "dashboard.html";
+            } catch(e) { alert("Error: " + e.message); }
+        };
+
+        document.getElementById('btn-void').onclick = async () => {
+            if(!confirm("この伝票を【没電】にしますか？\n※この操作は取り消せません。")) return;
+            try {
+                await updateDoc(doc(db, "tenants", tenantId, "slips", slipId), {
+                    status: 'void',
+                    voidAt: serverTimestamp(),
+                    totalAmount: 0 
+                });
+                alert("没電処理しました");
+                window.location.href = "dashboard.html";
             } catch(e) { alert("Error: " + e.message); }
         };
 

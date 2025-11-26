@@ -28,6 +28,7 @@
         .badge-paid { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .badge-void { background: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; }
         .amount-cell { font-weight: bold; font-family: monospace; font-size: 1rem; }
+        .amount-sub { font-size: 0.8rem; color: #888; display: block; font-weight: normal; }
     </style>
 </head>
 <body>
@@ -83,7 +84,7 @@
                             <th>種別</th>
                             <th>担当キャスト</th> <th>顧客名</th>
                             <th>ステータス</th>
-                            <th>総額</th>
+                            <th>総額 (税込) / 小計</th>
                             <th>詳細</th>
                         </tr>
                     </thead>
@@ -97,7 +98,7 @@
 
     <script type="module">
         import { db } from '../assets/js/firebase-config.js';
-        import { collection, query, where, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { collection, query, where, getDocs, getDoc, doc, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         if (!tenantId) window.location.href = "../index.html";
@@ -108,6 +109,35 @@
         const searchBtn = document.getElementById('search-btn');
 
         dateFromInput.valueAsDate = new Date();
+        let tenantConfig = { taxRate: 10, serviceRate: 30, rounding: "up_10" };
+
+        async function init() {
+            try {
+                const docSnap = await getDoc(doc(db, "tenants", tenantId));
+                if(docSnap.exists()) {
+                    const d = docSnap.data();
+                    if(d.config?.taxRate !== undefined) tenantConfig.taxRate = d.config.taxRate;
+                    if(d.config?.serviceRate !== undefined) tenantConfig.serviceRate = d.config.serviceRate;
+                    if(d.config?.rounding) tenantConfig.rounding = d.config.rounding;
+                }
+            } catch(e) { console.error(e); }
+            loadSlips();
+        }
+
+        function calculateTotal(subtotal) {
+            if (!subtotal) return 0;
+            let serviceFee = Math.floor(subtotal * (tenantConfig.serviceRate / 100));
+            let taxable = subtotal + serviceFee;
+            let tax = Math.floor(taxable * (tenantConfig.taxRate / 100));
+            let total = taxable + tax;
+            
+            if (tenantConfig.rounding === 'up_10') total = Math.ceil(total / 10) * 10;
+            else if (tenantConfig.rounding === 'down_10') total = Math.floor(total / 10) * 10;
+            else if (tenantConfig.rounding === 'up_100') total = Math.ceil(total / 100) * 100;
+            else if (tenantConfig.rounding === 'down_100') total = Math.floor(total / 100) * 100;
+            
+            return total;
+        }
 
         async function loadSlips() {
             listBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px;">検索中...</td></tr>';
@@ -148,13 +178,28 @@
                     let castName = "-";
                     if (data.visitType === 'shime') {
                         typeText = "指名";
-                        castName = data.primaryCastName || "不明"; // 修正: 名前を表示
+                        castName = data.primaryCastName || "不明";
                     } else if (data.visitType === 'eda') {
                         typeText = "枝";
                     }
 
+                    // 金額計算
+                    let totalDisplay = "";
+                    const rawAmount = data.totalAmount || 0;
+                    
+                    if (data.status === 'paid') {
+                        // 会計済みなら確定額
+                        totalDisplay = `¥${rawAmount.toLocaleString()}`;
+                    } else if (data.status === 'active') {
+                        // 営業中なら予想額と小計
+                        const est = calculateTotal(rawAmount);
+                        totalDisplay = `¥${est.toLocaleString()} <span class="amount-sub">(小計: ¥${rawAmount.toLocaleString()})</span>`;
+                    } else {
+                        totalDisplay = "¥0";
+                    }
+
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `<td>${dateStr}</td><td style="font-weight:bold;">${data.tableId}</td><td>${typeText}</td><td style="color:#007bff; font-weight:bold;">${castName}</td><td>${data.customerName || '-'}</td><td>${badge}</td><td class="amount-cell">¥${(data.totalAmount || 0).toLocaleString()}</td><td style="color:var(--primary-color); font-size:0.9rem;"><i class="fas fa-chevron-right"></i></td>`;
+                    tr.innerHTML = `<td>${dateStr}</td><td style="font-weight:bold;">${data.tableId}</td><td>${typeText}</td><td style="color:#007bff; font-weight:bold;">${castName}</td><td>${data.customerName || '-'}</td><td>${badge}</td><td class="amount-cell">${totalDisplay}</td><td style="color:var(--primary-color); font-size:0.9rem;"><i class="fas fa-chevron-right"></i></td>`;
                     tr.onclick = () => { window.location.href = `slip-detail.html?id=${doc.id}`; };
                     listBody.appendChild(tr);
                 });
@@ -166,7 +211,7 @@
             }
         }
         searchBtn.addEventListener('click', loadSlips);
-        loadSlips();
+        init();
     </script>
 </body>
 </html>

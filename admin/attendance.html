@@ -28,6 +28,7 @@
         th { background: #f8f9fa; font-weight: bold; color: #666; }
         .type-in { color: #28a745; font-weight: bold; }
         .type-out { color: #dc3545; font-weight: bold; }
+        .type-auto { color: #666; font-style: italic; }
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 30px; border-radius: 12px; width: 400px; box-shadow: var(--shadow-lg); }
@@ -40,10 +41,13 @@
         #qrcode { margin: 20px 0; padding: 10px; border: 1px solid #eee; background: white; }
         .timer-bar-bg { width: 100%; max-width: 300px; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-top: 10px; }
         .timer-bar { height: 100%; background: var(--primary-color); width: 100%; transition: width 1s linear; }
-        
+
         /* Mobile Header */
         .admin-mobile-header { display: none; background: white; padding: 15px; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-sm); }
         .mobile-menu-btn { background: none; border: none; font-size: 1.5rem; }
+
+        /* Auto Checkout Info */
+        #auto-checkout-msg { display: none; background: #fff3cd; color: #856404; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffeeba; }
 
         @media (max-width: 768px) {
             .dashboard-container { flex-direction: column; }
@@ -85,6 +89,9 @@
 
         <div class="main-content">
             <h2 style="margin-bottom: 20px;"><i class="fas fa-clock"></i> 出勤管理 (Time Card)</h2>
+            
+            <div id="auto-checkout-msg"></div>
+
             <div class="qr-section">
                 <h3 style="margin:0;">従業員用 出勤/退勤QRコード</h3>
                 <p style="color:#666; font-size:0.9rem;">スタッフは自身のスマホでこのQRコードを読み取ってください。<br>不正防止のためQRコードは1分ごとに自動更新されます。</p>
@@ -123,7 +130,8 @@
 
     <script type="module">
         import { db } from '../assets/js/firebase-config.js';
-        import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, orderBy, Timestamp, getDocs, setDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, orderBy, limit, Timestamp, getDocs, getDoc, setDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { getBusinessDate } from '../assets/js/utils.js';
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         if (!tenantId) window.location.href = "../index.html";
@@ -135,8 +143,11 @@
         const qrContainer = document.getElementById('qrcode');
         const timeLeftSpan = document.getElementById('time-left');
         const timerBar = document.getElementById('timer-bar');
+        const autoCheckoutMsg = document.getElementById('auto-checkout-msg');
+        
         let countdown = 60;
         let castData = [];
+        let cutoffHour = 0; // デフォルト0時
 
         function generateToken() { return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15); }
         async function updateQrCode() {
@@ -150,6 +161,90 @@
         }
         function updateTimerDisplay() { timeLeftSpan.textContent = countdown; const percent = (countdown / 60) * 100; timerBar.style.width = `${percent}%`; }
         setInterval(() => { countdown--; if(countdown <= 0) { updateQrCode(); } else { updateTimerDisplay(); } }, 1000);
+
+        async function init() {
+            // 店舗設定(CutoffHour)取得
+            try {
+                const shopSnap = await getDoc(doc(db, "tenants", tenantId));
+                if(shopSnap.exists()) {
+                    const conf = shopSnap.data().config?.businessDay;
+                    if(conf && conf.cutoffHour !== undefined) cutoffHour = conf.cutoffHour;
+                }
+            } catch(e) { console.error(e); }
+
+            updateQrCode();
+            startStatusListener();
+            startHistoryListener();
+            checkAutoClockOut(); // 自動退勤チェック実行
+        }
+
+        // ★自動退勤チェック機能
+        async function checkAutoClockOut() {
+            try {
+                // 1. 現在「出勤中」のキャストを取得
+                const q = query(collection(db, "tenants", tenantId, "users"), where("role", "==", "cast"), where("currentStatus", "==", "working"));
+                const snap = await getDocs(q);
+                
+                if (snap.empty) return;
+
+                // 2. 「今日の営業開始日時」を算出
+                const now = new Date();
+                const businessDate = getBusinessDate(now, cutoffHour); // 営業日付(00:00:00)
+                // 営業開始時刻 = 営業日付 + cutoffHour
+                const openTime = new Date(businessDate);
+                openTime.setHours(cutoffHour, 0, 0, 0);
+
+                let autoOutCount = 0;
+
+                // 3. 各キャストについてチェック
+                for (const userDoc of snap.docs) {
+                    const uid = userDoc.id;
+                    const uData = userDoc.data();
+
+                    // 最新の出勤打刻(IN)を取得
+                    const attQ = query(
+                        collection(db, "tenants", tenantId, "attendance"),
+                        where("userId", "==", uid),
+                        where("type", "==", "in"),
+                        orderBy("timestamp", "desc"),
+                        limit(1)
+                    );
+                    const attSnap = await getDocs(attQ);
+                    
+                    if (!attSnap.empty) {
+                        const lastInTime = attSnap.docs[0].data().timestamp.toDate();
+                        
+                        // 「最終出勤時刻」が「今日の営業開始時刻」より前なら、切り忘れとみなす
+                        if (lastInTime < openTime) {
+                            console.log(`Auto ClockOut: ${uData.name} (LastIn: ${lastInTime.toLocaleString()})`);
+                            
+                            // 退勤処理
+                            await addDoc(collection(db, "tenants", tenantId, "attendance"), {
+                                userId: uid,
+                                userName: uData.name,
+                                type: 'out',
+                                timestamp: serverTimestamp(),
+                                note: '自動退勤(日付変更)'
+                            });
+                            
+                            await updateDoc(doc(db, "tenants", tenantId, "users", uid), {
+                                currentStatus: 'off'
+                            });
+                            autoOutCount++;
+                        }
+                    }
+                }
+
+                if (autoOutCount > 0) {
+                    autoCheckoutMsg.textContent = `${autoOutCount}名のキャストを自動退勤処理しました（日付変更線またぎ）。`;
+                    autoCheckoutMsg.style.display = 'block';
+                    setTimeout(() => autoCheckoutMsg.style.display = 'none', 5000);
+                }
+
+            } catch(e) {
+                console.error("Auto Checkout Error:", e);
+            }
+        }
 
         function startStatusListener() {
             const q = query(collection(db, "tenants", tenantId, "users"), where("role", "==", "cast"));
@@ -171,14 +266,19 @@
         }
 
         function startHistoryListener() {
-            const q = query(collection(db, "tenants", tenantId, "attendance"), orderBy("timestamp", "desc"));
+            const q = query(collection(db, "tenants", tenantId, "attendance"), orderBy("timestamp", "desc"), limit(50));
             onSnapshot(q, (snapshot) => {
-                historyList.innerHTML = ""; const today = new Date(); today.setHours(0,0,0,0);
+                historyList.innerHTML = ""; 
                 snapshot.forEach(doc => {
                     const data = doc.data(); const time = data.timestamp ? data.timestamp.toDate() : new Date();
-                    if (time < today) return; 
-                    const timeStr = time.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-                    const typeLabel = data.type === 'in' ? '<span class="type-in">出勤</span>' : '<span class="type-out">退勤</span>';
+                    const timeStr = time.toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour: '2-digit', minute: '2-digit' });
+                    
+                    let typeLabel = "";
+                    if (data.type === 'in') typeLabel = '<span class="type-in">出勤</span>';
+                    else if (data.type === 'out') typeLabel = '<span class="type-out">退勤</span>';
+                    
+                    if (data.note) typeLabel += ` <span class="type-auto">(${data.note})</span>`;
+
                     const tr = document.createElement('tr');
                     tr.innerHTML = `<td>${timeStr}</td><td>${data.userName}</td><td>${typeLabel}</td><td><button onclick="deleteLog('${doc.id}')" style="border:none; background:none; color:#dc3545; cursor:pointer;"><i class="fas fa-trash"></i></button></td>`;
                     historyList.appendChild(tr);
@@ -207,15 +307,14 @@
             const newStatus = type === 'in' ? 'working' : 'off';
 
             try { 
-                // 1. 打刻履歴を追加
                 await addDoc(collection(db, "tenants", tenantId, "attendance"), { 
                     userId: castId, 
                     userName: cast.name, 
                     type: type, 
-                    timestamp: Timestamp.fromDate(timestamp) 
+                    timestamp: Timestamp.fromDate(timestamp),
+                    note: '手動修正'
                 }); 
                 
-                // 2. ユーザーの現在のステータスを更新 (ここが修正ポイント)
                 await updateDoc(doc(db, "tenants", tenantId, "users", castId), {
                     currentStatus: newStatus
                 });
@@ -228,7 +327,7 @@
 
         window.deleteLog = async (id) => { if(!confirm("この履歴を削除しますか？")) return; await deleteDoc(doc(db, "tenants", tenantId, "attendance", id)); };
 
-        updateQrCode(); startStatusListener(); startHistoryListener();
+        init();
     </script>
 </body>
 </html>
