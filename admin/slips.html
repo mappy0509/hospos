@@ -14,27 +14,51 @@
         .menu-item { padding: 12px; color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
         .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
         .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
+        
         .filter-bar { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); display: flex; gap: 15px; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; }
+        .filter-group { flex: 1; min-width: 150px; } /* モバイルで幅調整 */
         .filter-group label { display: block; font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; }
-        .filter-input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; }
-        .btn-search { padding: 10px 20px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; height: 42px; }
+        .filter-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; box-sizing: border-box; }
+        .btn-search { padding: 10px 20px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; height: 42px; min-width: 100px; }
+        
         .table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; white-space: nowrap; }
         th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
         th { background: #f8f9fa; font-weight: bold; color: #666; }
         tr:hover { background: #f8f9fa; cursor: pointer; }
+        
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
         .badge-active { background: #fff5f5; color: #dc3545; border: 1px solid #f5c6cb; }
         .badge-paid { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .badge-void { background: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; }
         .amount-cell { font-weight: bold; font-family: monospace; font-size: 1rem; }
         .amount-sub { font-size: 0.8rem; color: #888; display: block; font-weight: normal; }
+
+        /* Mobile Header & Layout */
+        .admin-mobile-header { display: none; background: white; padding: 15px; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-sm); }
+        .mobile-menu-btn { background: none; border: none; font-size: 1.5rem; }
+
+        @media (max-width: 768px) {
+            .dashboard-container { flex-direction: column; }
+            .sidebar { display: none; width: 100%; position: fixed; top: 60px; left: 0; height: calc(100vh - 60px); z-index: 99; overflow-y: auto; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+            .sidebar.active { display: flex; }
+            .admin-mobile-header { display: flex; }
+            .main-content { padding: 20px; }
+            
+            .filter-bar { flex-direction: column; align-items: stretch; gap: 10px; }
+            .btn-search { width: 100%; }
+        }
     </style>
 </head>
 <body>
 
+    <div class="admin-mobile-header">
+        <div style="font-weight:bold; font-size:1.2rem; color:var(--primary-color);"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+        <button class="mobile-menu-btn" id="mobile-menu-toggle"><i class="fas fa-bars"></i></button>
+    </div>
+
     <div class="dashboard-container">
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
             <nav>
                 <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
@@ -102,6 +126,14 @@
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         if (!tenantId) window.location.href = "../index.html";
+
+        // Mobile Sidebar Toggle
+        const toggleBtn = document.getElementById('mobile-menu-toggle');
+        if(toggleBtn) {
+            toggleBtn.onclick = () => {
+                document.getElementById('sidebar').classList.toggle('active');
+            };
+        }
 
         const listBody = document.getElementById('slips-list');
         const dateFromInput = document.getElementById('date-from');

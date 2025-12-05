@@ -14,29 +14,53 @@
         .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
         .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
 
-        .inventory-table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        .inventory-table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; /* 横スクロール強制用 */ }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; white-space: nowrap; }
         th { background: #f8f9fa; color: #666; font-weight: bold; }
+        
         .stock-val { font-weight: bold; font-size: 1.1rem; }
         .stock-low { color: #dc3545; background-color: #fff5f5; }
         .alert-badge { background: #dc3545; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-left: 10px; display: none; }
         .stock-low .alert-badge { display: inline-block; }
+        
         .qty-btn { width: 30px; height: 30px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; font-weight: bold; color: #555; }
         .qty-btn:hover { background: #eee; }
         .btn-add-stock { background: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-bottom: 20px; }
         .btn-delete { color: #dc3545; background: none; border: none; cursor: pointer; }
+        
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; box-shadow: var(--shadow-lg); }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; box-shadow: var(--shadow-lg); max-width: 95%; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
         .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+
+        /* Mobile Header & Layout */
+        .admin-mobile-header { display: none; background: white; padding: 15px; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-sm); }
+        .mobile-menu-btn { background: none; border: none; font-size: 1.5rem; }
+
+        @media (max-width: 768px) {
+            .dashboard-container { flex-direction: column; }
+            .sidebar { display: none; width: 100%; position: fixed; top: 60px; left: 0; height: calc(100vh - 60px); z-index: 99; overflow-y: auto; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+            .sidebar.active { display: flex; }
+            .admin-mobile-header { display: flex; }
+            .main-content { padding: 20px; }
+            
+            /* ヘッダー周りの調整 */
+            .main-content > div:first-child { flex-direction: column; align-items: stretch; gap: 10px; }
+            .btn-add-stock { width: 100%; margin-bottom: 10px; }
+        }
     </style>
 </head>
 <body>
 
+    <div class="admin-mobile-header">
+        <div style="font-weight:bold; font-size:1.2rem; color:var(--primary-color);"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+        <button class="mobile-menu-btn" id="mobile-menu-toggle"><i class="fas fa-bars"></i></button>
+    </div>
+
     <div class="dashboard-container">
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
             <nav>
                 <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
@@ -96,6 +120,14 @@
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         if (!tenantId) window.location.href = "../index.html";
+
+        // Mobile Sidebar Toggle
+        const toggleBtn = document.getElementById('mobile-menu-toggle');
+        if(toggleBtn) {
+            toggleBtn.onclick = () => {
+                document.getElementById('sidebar').classList.toggle('active');
+            };
+        }
 
         const invList = document.getElementById('inventory-list');
         const modal = document.getElementById('inv-modal');

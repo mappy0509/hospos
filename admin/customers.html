@@ -14,9 +14,10 @@
         .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
         .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
 
-        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .search-bar { display: flex; gap: 10px; background: white; padding: 10px; border-radius: 8px; box-shadow: var(--shadow-sm); }
-        .search-input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 250px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .search-bar { display: flex; gap: 10px; background: white; padding: 10px; border-radius: 8px; box-shadow: var(--shadow-sm); flex-wrap: wrap; }
+        .search-input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 250px; box-sizing: border-box; }
+        
         .customer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         
         .cust-card { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); border-top: 4px solid #6c757d; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; gap: 8px; }
@@ -42,14 +43,36 @@
         .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; max-width: 95%; box-shadow: var(--shadow-lg); }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
-        .input-box { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        .input-box { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
         .btn-save { width: 100%; padding: 12px; background: var(--primary-color); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+
+        /* Mobile Header & Layout */
+        .admin-mobile-header { display: none; background: white; padding: 15px; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-sm); }
+        .mobile-menu-btn { background: none; border: none; font-size: 1.5rem; }
+
+        @media (max-width: 768px) {
+            .dashboard-container { flex-direction: column; }
+            .sidebar { display: none; width: 100%; position: fixed; top: 60px; left: 0; height: calc(100vh - 60px); z-index: 99; overflow-y: auto; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+            .sidebar.active { display: flex; }
+            .admin-mobile-header { display: flex; }
+            .main-content { padding: 20px; }
+            
+            .page-header { flex-direction: column; align-items: stretch; gap: 15px; }
+            .search-bar { flex-direction: column; width: 100%; box-sizing: border-box; }
+            .search-input { width: 100%; }
+            .customer-grid { grid-template-columns: 1fr; } /* モバイルは1列表示 */
+        }
     </style>
 </head>
 <body>
 
+    <div class="admin-mobile-header">
+        <div style="font-weight:bold; font-size:1.2rem; color:var(--primary-color);"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+        <button class="mobile-menu-btn" id="mobile-menu-toggle"><i class="fas fa-bars"></i></button>
+    </div>
+
     <div class="dashboard-container">
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
             <nav>
                 <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
@@ -109,6 +132,14 @@
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         if (!tenantId) window.location.href = "../index.html";
 
+        // Mobile Sidebar Toggle
+        const toggleBtn = document.getElementById('mobile-menu-toggle');
+        if(toggleBtn) {
+            toggleBtn.onclick = () => {
+                document.getElementById('sidebar').classList.toggle('active');
+            };
+        }
+
         const listContainer = document.getElementById('customer-list');
         const modal = document.getElementById('cust-modal');
         const form = document.getElementById('cust-form');
@@ -117,10 +148,9 @@
         
         let allCustomers = [];
         let casts = {};
-        let customerStats = {}; // { customerName: { totalSales, monthSales, totalVisits, monthVisits, firstDate, lastDate } }
+        let customerStats = {}; 
 
         async function init() {
-            // 1. キャスト一覧取得
             const qCast = query(collection(db, "tenants", tenantId, "users"), where("role", "==", "cast"));
             const snap = await getDocs(qCast);
             castSelect.innerHTML = '<option value="">担当なし (フリー)</option>';
@@ -129,22 +159,17 @@
                 castSelect.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
             });
 
-            // 2. 売上データの集計 (全期間の会計済み伝票を取得)
             await calculateCustomerStats();
-
-            // 3. 顧客リストのリアルタイム監視開始
             startCustomerListener();
         }
 
-        // 売上・来店データの集計処理
         async function calculateCustomerStats() {
             try {
-                // 会計済み('paid')の伝票のみ取得
                 const qSlips = query(collection(db, "tenants", tenantId, "slips"), where("status", "==", "paid"));
                 const slipSnap = await getDocs(qSlips);
 
                 const now = new Date();
-                const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+                const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
                 customerStats = {};
 
@@ -153,31 +178,20 @@
                     const name = s.customerName;
                     if (!name) return;
 
-                    // 初期化
                     if (!customerStats[name]) {
                         customerStats[name] = {
-                            totalSales: 0,
-                            monthSales: 0,
-                            totalVisits: 0,
-                            monthVisits: 0,
-                            firstDate: null,
-                            lastDate: null
+                            totalSales: 0, monthSales: 0, totalVisits: 0, monthVisits: 0, firstDate: null, lastDate: null
                         };
                     }
 
                     const stats = customerStats[name];
                     const amount = s.totalAmount || 0;
                     
-                    // 日付処理
                     let visitDate = null;
-                    if (s.businessDate) {
-                         visitDate = new Date(s.businessDate); // YYYY-MM-DD string -> Date
-                    } else if (s.startTime) {
-                        visitDate = s.startTime.toDate();
-                    }
+                    if (s.businessDate) visitDate = new Date(s.businessDate);
+                    else if (s.startTime) visitDate = s.startTime.toDate();
 
                     if (visitDate) {
-                        // 累計・今月集計
                         stats.totalSales += amount;
                         stats.totalVisits += 1;
 
@@ -187,20 +201,13 @@
                             stats.monthVisits += 1;
                         }
 
-                        // 初来店・最終来店更新
                         const timeVal = visitDate.getTime();
-                        if (!stats.firstDate || timeVal < stats.firstDate.getTime()) {
-                            stats.firstDate = visitDate;
-                        }
-                        if (!stats.lastDate || timeVal > stats.lastDate.getTime()) {
-                            stats.lastDate = visitDate;
-                        }
+                        if (!stats.firstDate || timeVal < stats.firstDate.getTime()) stats.firstDate = visitDate;
+                        if (!stats.lastDate || timeVal > stats.lastDate.getTime()) stats.lastDate = visitDate;
                     }
                 });
 
-            } catch (error) {
-                console.error("Stats Calculation Error:", error);
-            }
+            } catch (error) { console.error("Stats Calculation Error:", error); }
         }
 
         function startCustomerListener() {
@@ -212,10 +219,7 @@
                     return; 
                 }
                 snapshot.forEach(doc => { allCustomers.push({ id: doc.id, ...doc.data() }); });
-                
-                // 名前順にソート（読み仮名がないので漢字コード順）
                 allCustomers.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-                
                 renderCustomers();
             });
         }
@@ -231,13 +235,7 @@
             listContainer.innerHTML = "";
             filtered.forEach(c => {
                 const castName = casts[c.assignedCastId] || "フリー";
-                
-                // 統計データの取得
-                const stats = customerStats[c.name] || {
-                    totalSales: 0, monthSales: 0, totalVisits: 0, monthVisits: 0, firstDate: null, lastDate: null
-                };
-
-                // 日付フォーマット
+                const stats = customerStats[c.name] || { totalSales: 0, monthSales: 0, totalVisits: 0, monthVisits: 0, firstDate: null, lastDate: null };
                 const formatDate = (d) => d ? `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}` : "-";
                 const firstStr = formatDate(stats.firstDate);
                 const lastStr = formatDate(stats.lastDate);
@@ -253,7 +251,6 @@
                         <span><i class="fas fa-birthday-cake"></i> ${c.age ? c.age + "歳" : "-"}</span>
                         <span><i class="fas fa-briefcase"></i> ${c.job || "-"}</span>
                     </div>
-
                     <div class="stats-grid">
                         <div class="stat-item">
                             <span class="stat-label">今月売上 / 累計売上</span>
@@ -264,11 +261,7 @@
                             <span class="stat-val">${stats.monthVisits}回 / ${stats.totalVisits}回</span>
                         </div>
                     </div>
-                    <div class="date-info">
-                        <span>初: ${firstStr}</span>
-                        <span>終: ${lastStr}</span>
-                    </div>
-
+                    <div class="date-info"><span>初: ${firstStr}</span><span>終: ${lastStr}</span></div>
                     <div class="cust-note-preview">${c.notes || "メモなし"}</div>
                 `;
                 div.onclick = () => editCustomer(c.id);
@@ -311,11 +304,8 @@
             try { 
                 if(id) await updateDoc(doc(db, "tenants", tenantId, "customers", id), data); 
                 else await addDoc(collection(db, "tenants", tenantId, "customers"), { ...data, createdAt: serverTimestamp() }); 
-                
-                // 名前が変わった場合など再集計が必要かもしれないが、簡易的にリロード推奨または再集計関数呼び出し
                 await calculateCustomerStats(); 
                 renderCustomers();
-                
                 closeModal(); 
             } catch(e) { alert("エラー: " + e.message); }
         });

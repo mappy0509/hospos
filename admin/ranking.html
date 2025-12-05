@@ -14,36 +14,75 @@
         .menu-item:hover, .menu-item.active { background-color: #e6f2ff; color: var(--primary-color); }
         .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
 
-        .rank-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px; border-radius: 12px; box-shadow: var(--shadow-sm); }
+        .rank-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px; border-radius: 12px; box-shadow: var(--shadow-sm); flex-wrap: wrap; gap: 15px; }
         .period-tabs { display: flex; gap: 10px; }
         .p-btn { padding: 8px 20px; border-radius: 20px; border: 1px solid #ddd; background: #f8f9fa; cursor: pointer; font-weight: bold; color: #666; transition: 0.2s; }
         .p-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
-        .type-switch { display: flex; gap: 5px; background: #eee; padding: 4px; border-radius: 8px; }
+        
+        .type-switch { display: flex; gap: 5px; background: #eee; padding: 4px; border-radius: 8px; flex-wrap: wrap; }
         .t-btn { padding: 6px 15px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.9rem; }
-        .t-btn.active { background: white; font-weight: bold; shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .t-btn.active { background: white; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        
         .ranking-list { display: flex; flex-direction: column; gap: 15px; }
         .rank-card { background: white; padding: 15px 20px; border-radius: 12px; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: space-between; transition: transform 0.2s; }
         .rank-card:hover { transform: scale(1.01); }
+        
         .rank-pos { font-size: 1.5rem; font-weight: bold; width: 50px; text-align: center; color: #999; }
         .rank-1 .rank-pos { color: #d4af37; text-shadow: 0 2px 4px rgba(212,175,55,0.3); font-size: 2rem; }
         .rank-2 .rank-pos { color: #a9a9a9; font-size: 1.8rem; }
         .rank-3 .rank-pos { color: #cd7f32; font-size: 1.6rem; }
+        
         .cast-info { flex: 1; margin-left: 20px; }
         .cast-name { font-size: 1.1rem; font-weight: bold; margin-bottom: 5px; }
         .bar-container { height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; width: 100%; max-width: 300px; }
         .bar-fill { height: 100%; background: var(--primary-color); width: 0%; transition: width 1s; border-radius: 4px; }
         .rank-1 .bar-fill { background: linear-gradient(90deg, #d4af37, #f6e27a); }
+        
         .score-box { text-align: right; min-width: 120px; }
         .score-val { font-size: 1.3rem; font-weight: bold; color: var(--text-main); }
         .score-unit { font-size: 0.8rem; color: #666; }
+        
         .crown-icon { display: none; margin-right: 5px; }
         .rank-1 .crown-icon { display: inline; }
+
+        /* Mobile Header & Layout */
+        .admin-mobile-header { display: none; background: white; padding: 15px; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-sm); }
+        .mobile-menu-btn { background: none; border: none; font-size: 1.5rem; }
+
+        @media (max-width: 768px) {
+            .dashboard-container { flex-direction: column; }
+            .sidebar { display: none; width: 100%; position: fixed; top: 60px; left: 0; height: calc(100vh - 60px); z-index: 99; overflow-y: auto; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+            .sidebar.active { display: flex; }
+            .admin-mobile-header { display: flex; }
+            .main-content { padding: 20px; }
+            
+            /* コントロールの調整 */
+            .rank-controls { flex-direction: column; align-items: stretch; }
+            .period-tabs { width: 100%; }
+            .p-btn { flex: 1; text-align: center; }
+            
+            /* 種別スイッチの調整 */
+            .type-switch { width: 100%; justify-content: center; }
+            .t-btn { flex: 1; text-align: center; }
+            
+            /* ランキングカード調整 */
+            .rank-card { padding: 10px 15px; }
+            .rank-pos { width: 30px; font-size: 1.2rem; }
+            .cast-info { margin-left: 10px; }
+            .score-box { min-width: 90px; }
+            .score-val { font-size: 1.1rem; }
+        }
     </style>
 </head>
 <body>
 
+    <div class="admin-mobile-header">
+        <div style="font-weight:bold; font-size:1.2rem; color:var(--primary-color);"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+        <button class="mobile-menu-btn" id="mobile-menu-toggle"><i class="fas fa-bars"></i></button>
+    </div>
+
     <div class="dashboard-container">
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
             <nav>
                 <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
@@ -72,7 +111,7 @@
                     <button class="p-btn" onclick="setPeriod('week')">今週</button>
                     <button class="p-btn" onclick="setPeriod('month')">今月</button>
                 </div>
-                <div style="display:flex; align-items:center; gap:10px;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; width:100%; justify-content:space-between;">
                     <span id="range-label" style="font-weight:bold; color:#666; font-size:0.9rem;"></span>
                     <div class="type-switch">
                         <button class="t-btn active" onclick="setType('sales')">売上</button>
@@ -91,6 +130,14 @@
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         if (!tenantId) window.location.href = "../index.html";
+
+        // Mobile Sidebar Toggle
+        const toggleBtn = document.getElementById('mobile-menu-toggle');
+        if(toggleBtn) {
+            toggleBtn.onclick = () => {
+                document.getElementById('sidebar').classList.toggle('active');
+            };
+        }
 
         let currentPeriod = 'today';
         let currentType = 'sales';

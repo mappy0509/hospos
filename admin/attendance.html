@@ -22,19 +22,19 @@
         .cast-name { font-weight: bold; }
         .status-text { font-size: 0.8rem; color: #666; }
 
-        .history-container { background: white; border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        .history-container { background: white; border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 500px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; white-space: nowrap; }
         th { background: #f8f9fa; font-weight: bold; color: #666; }
         .type-in { color: #28a745; font-weight: bold; }
         .type-out { color: #dc3545; font-weight: bold; }
         .type-auto { color: #666; font-style: italic; }
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 400px; box-shadow: var(--shadow-lg); }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 400px; box-shadow: var(--shadow-lg); max-width: 90%; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .input-box { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        .input-box { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
         .btn-submit { width: 100%; padding: 10px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
 
         .qr-section { background: white; padding: 30px; border-radius: 12px; box-shadow: var(--shadow-sm); text-align: center; margin-bottom: 30px; display: flex; flex-direction: column; align-items: center; }
@@ -42,19 +42,22 @@
         .timer-bar-bg { width: 100%; max-width: 300px; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-top: 10px; }
         .timer-bar { height: 100%; background: var(--primary-color); width: 100%; transition: width 1s linear; }
 
-        /* Mobile Header */
+        #auto-checkout-msg { display: none; background: #fff3cd; color: #856404; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffeeba; }
+
+        /* Mobile Header & Layout */
         .admin-mobile-header { display: none; background: white; padding: 15px; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-sm); }
         .mobile-menu-btn { background: none; border: none; font-size: 1.5rem; }
 
-        /* Auto Checkout Info */
-        #auto-checkout-msg { display: none; background: #fff3cd; color: #856404; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffeeba; }
-
         @media (max-width: 768px) {
             .dashboard-container { flex-direction: column; }
-            .sidebar { display: none; width: 100%; position: fixed; top: 60px; left: 0; height: calc(100vh - 60px); z-index: 99; }
+            .sidebar { display: none; width: 100%; position: fixed; top: 60px; left: 0; height: calc(100vh - 60px); z-index: 99; overflow-y: auto; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
             .sidebar.active { display: flex; }
             .admin-mobile-header { display: flex; }
             .main-content { padding: 20px; }
+            
+            .status-board { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+            .qr-section { padding: 20px; }
+            #qrcode img { max-width: 100%; }
         }
     </style>
 </head>
@@ -62,7 +65,7 @@
 
     <div class="admin-mobile-header">
         <div style="font-weight:bold; font-size:1.2rem; color:var(--primary-color);"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
-        <button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('active')"><i class="fas fa-bars"></i></button>
+        <button class="mobile-menu-btn" id="mobile-menu-toggle"><i class="fas fa-bars"></i></button>
     </div>
 
     <div class="dashboard-container">
@@ -101,7 +104,7 @@
             </div>
             <h4 style="margin-bottom:10px; color:#666;">現在の出勤状況</h4>
             <div id="status-board" class="status-board"><div style="color:#999;">読み込み中...</div></div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
                 <h4 style="margin:0; color:#666;">本日の打刻履歴</h4>
                 <button class="btn-submit" style="width:auto; font-size:0.9rem;" onclick="openModal()"><i class="fas fa-plus"></i> 手動打刻</button>
             </div>
@@ -136,6 +139,14 @@
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         if (!tenantId) window.location.href = "../index.html";
 
+        // Mobile Sidebar Toggle
+        const toggleBtn = document.getElementById('mobile-menu-toggle');
+        if(toggleBtn) {
+            toggleBtn.onclick = () => {
+                document.getElementById('sidebar').classList.toggle('active');
+            };
+        }
+
         const statusBoard = document.getElementById('status-board');
         const historyList = document.getElementById('history-list');
         const modal = document.getElementById('log-modal');
@@ -147,7 +158,7 @@
         
         let countdown = 60;
         let castData = [];
-        let cutoffHour = 0; // デフォルト0時
+        let cutoffHour = 0; 
 
         function generateToken() { return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15); }
         async function updateQrCode() {
@@ -163,7 +174,6 @@
         setInterval(() => { countdown--; if(countdown <= 0) { updateQrCode(); } else { updateTimerDisplay(); } }, 1000);
 
         async function init() {
-            // 店舗設定(CutoffHour)取得
             try {
                 const shopSnap = await getDoc(doc(db, "tenants", tenantId));
                 if(shopSnap.exists()) {
@@ -175,33 +185,24 @@
             updateQrCode();
             startStatusListener();
             startHistoryListener();
-            checkAutoClockOut(); // 自動退勤チェック実行
+            checkAutoClockOut();
         }
 
-        // ★自動退勤チェック機能
         async function checkAutoClockOut() {
             try {
-                // 1. 現在「出勤中」のキャストを取得
                 const q = query(collection(db, "tenants", tenantId, "users"), where("role", "==", "cast"), where("currentStatus", "==", "working"));
                 const snap = await getDocs(q);
-                
                 if (snap.empty) return;
 
-                // 2. 「今日の営業開始日時」を算出
                 const now = new Date();
-                const businessDate = getBusinessDate(now, cutoffHour); // 営業日付(00:00:00)
-                // 営業開始時刻 = 営業日付 + cutoffHour
+                const businessDate = getBusinessDate(now, cutoffHour);
                 const openTime = new Date(businessDate);
                 openTime.setHours(cutoffHour, 0, 0, 0);
 
                 let autoOutCount = 0;
-
-                // 3. 各キャストについてチェック
                 for (const userDoc of snap.docs) {
                     const uid = userDoc.id;
                     const uData = userDoc.data();
-
-                    // 最新の出勤打刻(IN)を取得
                     const attQ = query(
                         collection(db, "tenants", tenantId, "attendance"),
                         where("userId", "==", uid),
@@ -210,40 +211,23 @@
                         limit(1)
                     );
                     const attSnap = await getDocs(attQ);
-                    
                     if (!attSnap.empty) {
                         const lastInTime = attSnap.docs[0].data().timestamp.toDate();
-                        
-                        // 「最終出勤時刻」が「今日の営業開始時刻」より前なら、切り忘れとみなす
                         if (lastInTime < openTime) {
-                            console.log(`Auto ClockOut: ${uData.name} (LastIn: ${lastInTime.toLocaleString()})`);
-                            
-                            // 退勤処理
                             await addDoc(collection(db, "tenants", tenantId, "attendance"), {
-                                userId: uid,
-                                userName: uData.name,
-                                type: 'out',
-                                timestamp: serverTimestamp(),
-                                note: '自動退勤(日付変更)'
+                                userId: uid, userName: uData.name, type: 'out', timestamp: serverTimestamp(), note: '自動退勤(日付変更)'
                             });
-                            
-                            await updateDoc(doc(db, "tenants", tenantId, "users", uid), {
-                                currentStatus: 'off'
-                            });
+                            await updateDoc(doc(db, "tenants", tenantId, "users", uid), { currentStatus: 'off' });
                             autoOutCount++;
                         }
                     }
                 }
-
                 if (autoOutCount > 0) {
                     autoCheckoutMsg.textContent = `${autoOutCount}名のキャストを自動退勤処理しました（日付変更線またぎ）。`;
                     autoCheckoutMsg.style.display = 'block';
                     setTimeout(() => autoCheckoutMsg.style.display = 'none', 5000);
                 }
-
-            } catch(e) {
-                console.error("Auto Checkout Error:", e);
-            }
+            } catch(e) { console.error("Auto Checkout Error:", e); }
         }
 
         function startStatusListener() {
@@ -294,7 +278,6 @@
         window.closeModal = () => modal.style.display = 'none';
         function updateCastSelect() { castSelect.innerHTML = ""; castData.forEach(c => { castSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`; }); }
         
-        // 手動打刻登録
         window.submitLog = async () => {
             const castId = castSelect.value; 
             const type = document.getElementById('log-type').value; 
@@ -308,21 +291,11 @@
 
             try { 
                 await addDoc(collection(db, "tenants", tenantId, "attendance"), { 
-                    userId: castId, 
-                    userName: cast.name, 
-                    type: type, 
-                    timestamp: Timestamp.fromDate(timestamp),
-                    note: '手動修正'
+                    userId: castId, userName: cast.name, type: type, timestamp: Timestamp.fromDate(timestamp), note: '手動修正'
                 }); 
-                
-                await updateDoc(doc(db, "tenants", tenantId, "users", castId), {
-                    currentStatus: newStatus
-                });
-
+                await updateDoc(doc(db, "tenants", tenantId, "users", castId), { currentStatus: newStatus });
                 closeModal(); 
-            } catch(e) { 
-                alert("エラー: " + e.message); 
-            }
+            } catch(e) { alert("エラー: " + e.message); }
         };
 
         window.deleteLog = async (id) => { if(!confirm("この履歴を削除しますか？")) return; await deleteDoc(doc(db, "tenants", tenantId, "attendance", id)); };

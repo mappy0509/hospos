@@ -16,7 +16,7 @@
         .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
 
         /* 設定フォーム共通 */
-        .settings-container { max-width: 900px; margin: 0 auto; }
+        .settings-container { max-width: 900px; margin: 0 auto; padding-bottom: 80px; /* 保存エリア用余白 */ }
         .settings-section { background: white; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: var(--shadow-sm); margin-bottom: 30px; display: none; animation: fadeIn 0.3s ease-out; }
         .settings-section.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
@@ -24,10 +24,10 @@
         .section-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; color: var(--primary-color); display: flex; align-items: center; gap: 10px; }
         
         /* タブナビゲーション */
-        .tabs-nav { display: flex; gap: 5px; overflow-x: auto; border-bottom: 2px solid #ddd; padding-bottom: 0; margin-bottom: 0; }
+        .tabs-nav { display: flex; gap: 5px; overflow-x: auto; border-bottom: 2px solid #ddd; padding-bottom: 0; margin-bottom: 0; -webkit-overflow-scrolling: touch; }
         .tab-btn {
             padding: 12px 20px; background: #e9ecef; border: none; border-radius: 8px 8px 0 0;
-            cursor: pointer; font-weight: bold; color: #666; transition: 0.2s; flex: 1; min-width: 120px; text-align: center;
+            cursor: pointer; font-weight: bold; color: #666; transition: 0.2s; flex: 1; min-width: 120px; text-align: center; white-space: nowrap;
         }
         .tab-btn:hover { background: #dee2e6; }
         .tab-btn.active { background: var(--primary-color); color: white; }
@@ -37,15 +37,15 @@
         .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 0.95rem; }
-        .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; }
+        .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; box-sizing: border-box; }
         .helper-text { font-size: 0.85rem; color: var(--text-sub); margin-top: 5px; line-height: 1.4; }
 
         /* 保存エリア */
-        .save-area { position: sticky; bottom: 20px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 15px 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color); max-width: 900px; margin: 0 auto; }
+        .save-area { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 15px 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color); max-width: 900px; width: 90%; z-index: 1000; box-sizing: border-box; }
 
         /* リスト追加系 */
         .list-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #eee; }
-        .btn-add { background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; margin-bottom: 10px; width: 100%; }
+        .btn-add { background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; margin-bottom: 10px; width: 100%; font-weight: bold; }
         .btn-delete { background: #dc3545; color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; }
 
         /* 曜日選択 */
@@ -53,12 +53,41 @@
         .week-chk { display: none; }
         .week-label { padding: 10px 0; width: 45px; text-align: center; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; background: #fff; transition: 0.2s; font-weight: bold; color: #666; }
         .week-chk:checked + .week-label { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+
+        /* Mobile Header & Layout */
+        .admin-mobile-header { display: none; background: white; padding: 15px; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-sm); }
+        .mobile-menu-btn { background: none; border: none; font-size: 1.5rem; }
+
+        @media (max-width: 768px) {
+            .dashboard-container { flex-direction: column; }
+            .sidebar { display: none; width: 100%; position: fixed; top: 60px; left: 0; height: calc(100vh - 60px); z-index: 99; overflow-y: auto; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+            .sidebar.active { display: flex; }
+            .admin-mobile-header { display: flex; }
+            .main-content { padding: 20px; padding-bottom: 100px; }
+            
+            /* フォーム調整 */
+            .input-row { grid-template-columns: 1fr; gap: 0; }
+            .settings-section { padding: 20px; }
+            
+            /* 保存エリア調整 */
+            .save-area { width: 95%; flex-direction: column; gap: 10px; bottom: 10px; padding: 15px; }
+            .save-area button { width: 100%; }
+            
+            /* リスト行の調整 */
+            .list-row { flex-wrap: wrap; }
+            .grade-songs { width: 100%; order: 1; } /* 曲リストを改行 */
+        }
     </style>
 </head>
 <body>
 
+    <div class="admin-mobile-header">
+        <div style="font-weight:bold; font-size:1.2rem; color:var(--primary-color);"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+        <button class="mobile-menu-btn" id="mobile-menu-toggle"><i class="fas fa-bars"></i></button>
+    </div>
+
     <div class="dashboard-container">
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
             <nav>
                 <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
@@ -272,7 +301,7 @@
                 </div>
 
                 <div class="save-area">
-                    <div id="status-msg" style="margin-right: 15px; font-weight: bold; color: #28a745;"></div>
+                    <div id="status-msg" style="font-weight: bold; color: #28a745;"></div>
                     <button type="submit" class="btn-primary" style="width: 200px; padding:15px;">全設定を保存する</button>
                 </div>
             </form>
@@ -285,6 +314,14 @@
 
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         if (!tenantId) window.location.href = "../index.html";
+
+        // Mobile Sidebar Toggle
+        const toggleBtn = document.getElementById('mobile-menu-toggle');
+        if(toggleBtn) {
+            toggleBtn.onclick = () => {
+                document.getElementById('sidebar').classList.toggle('active');
+            };
+        }
 
         // タブ切り替え関数
         window.switchTab = (tabName) => {
@@ -318,10 +355,10 @@
             const div = document.createElement('div');
             div.className = 'list-row';
             div.innerHTML = `
-                <input type="text" class="grade-name" placeholder="名称" value="${name}" style="flex:1">
-                <input type="number" class="grade-threshold" placeholder="金額" value="${th}" style="width:100px">
+                <input type="text" class="grade-name" placeholder="名称" value="${name}" style="flex:1; min-width:100px;">
+                <input type="number" class="grade-threshold" placeholder="金額" value="${th}" style="width:100px;">
                 <input type="color" class="grade-color" value="${col}" style="width:40px; height:40px; padding:0; cursor:pointer;">
-                <input type="text" class="grade-songs" placeholder="曲リスト" value="${sng}" style="flex:2">
+                <input type="text" class="grade-songs" placeholder="曲リスト" value="${sng}" style="flex:2; min-width:150px;">
                 <button type="button" class="btn-delete" onclick="this.parentElement.remove()"><i class="fas fa-trash"></i></button>
             `;
             callContainer.appendChild(div);

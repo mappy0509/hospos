@@ -19,6 +19,7 @@
         .tab-btn { padding: 8px 16px; border: none; background: #f8f9fa; border-radius: 20px; cursor: pointer; font-weight: bold; color: #666; white-space: nowrap; }
         .tab-btn.active { background: var(--primary-color); color: white; }
         .tab-btn-add { background: #e9ecef; color: var(--primary-color); }
+        
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
         .product-card { background: white; border-radius: 8px; padding: 15px; box-shadow: var(--shadow-sm); border: 1px solid #eee; display: flex; flex-direction: column; gap: 8px; cursor: grab; position: relative; }
         .product-card:active { cursor: grabbing; }
@@ -46,17 +47,38 @@
         .helper-text { font-size: 0.85rem; color: #666; margin-bottom: 10px; background: #f8f9fa; padding: 10px; border-radius: 6px; }
         .btn-bulk { background: #17a2b8; color: white; border: none; padding: 6px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; margin-left: 10px; font-size: 0.9rem; }
         
-        /* カテゴリ操作ボタン */
         .btn-cat-delete { background: #dc3545; color: white; border: none; padding: 6px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; margin-left: 10px; font-size: 0.9rem; display: none; }
-        .btn-cat-delete:hover { background: #c82333; }
         .btn-cat-rename { background: #28a745; color: white; border: none; padding: 6px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; margin-left: 5px; font-size: 0.9rem; display: none; }
-        .btn-cat-rename:hover { background: #218838; }
+
+        /* Mobile Header & Layout */
+        .admin-mobile-header { display: none; background: white; padding: 15px; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-sm); }
+        .mobile-menu-btn { background: none; border: none; font-size: 1.5rem; }
+
+        @media (max-width: 768px) {
+            .dashboard-container { flex-direction: column; }
+            .sidebar { display: none; width: 100%; position: fixed; top: 60px; left: 0; height: calc(100vh - 60px); z-index: 99; overflow-y: auto; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+            .sidebar.active { display: flex; }
+            .admin-mobile-header { display: flex; }
+            .main-content { padding: 20px; }
+            
+            .product-grid { grid-template-columns: 1fr; } /* モバイルは1列表示 */
+            
+            /* カテゴリ操作エリアの調整 */
+            .main-content > div:first-of-type { flex-direction: column; align-items: stretch; gap: 10px; }
+            #category-tabs { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 5px; }
+            .btn-bulk, .btn-cat-rename, .btn-cat-delete { margin-left: 0; width: 100%; margin-top: 5px; }
+        }
     </style>
 </head>
 <body>
 
+    <div class="admin-mobile-header">
+        <div style="font-weight:bold; font-size:1.2rem; color:var(--primary-color);"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
+        <button class="mobile-menu-btn" id="mobile-menu-toggle"><i class="fas fa-bars"></i></button>
+    </div>
+
     <div class="dashboard-container">
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="brand"><i class="fas fa-glass-cheers"></i> HOSPOS</div>
             <nav>
                 <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i> ダッシュボード</a>
@@ -152,6 +174,14 @@
         const tenantId = sessionStorage.getItem('hospos_tenantId');
         if (!tenantId) window.location.href = "../index.html";
 
+        // Mobile Sidebar Toggle
+        const toggleBtn = document.getElementById('mobile-menu-toggle');
+        if(toggleBtn) {
+            toggleBtn.onclick = () => {
+                document.getElementById('sidebar').classList.toggle('active');
+            };
+        }
+
         const grid = document.getElementById('product-grid');
         const modal = document.getElementById('prod-modal');
         const bulkModal = document.getElementById('bulk-modal');
@@ -166,7 +196,7 @@
 
         let products = [];
         let inventoryList = [];
-        let categories = []; // ★修正: 固定値を空にする
+        let categories = [];
         let currentFilter = "All";
 
         async function init() {
@@ -180,12 +210,10 @@
                 products = [];
                 snapshot.forEach(doc => { products.push({ id: doc.id, ...doc.data() }); });
                 
-                // ★修正: 商品データに基づいてカテゴリリストを再生成
                 const usedCats = new Set();
                 products.forEach(p => { if(p.category) usedCats.add(p.category); });
                 categories = Array.from(usedCats).sort();
                 
-                // もし現在の選択カテゴリが存在しなくなったらAllに戻す
                 if (currentFilter !== 'All' && !categories.includes(currentFilter)) {
                     currentFilter = 'All';
                 }
@@ -200,7 +228,6 @@
             let displayList = currentFilter === "All" ? products : products.filter(p => p.category === currentFilter);
             displayList.sort((a, b) => (a.sortOrder || 999) - (b.sortOrder || 999));
             
-            // カテゴリ操作ボタンの表示制御
             if (currentFilter !== 'All') {
                 btnDeleteCat.style.display = 'block';
                 btnRenameCat.style.display = 'block';
@@ -243,15 +270,12 @@
         window.addNewCategory = () => { 
             const newCat = prompt("新しいカテゴリ名を入力してください"); 
             if(newCat && !categories.includes(newCat)) { 
-                // 商品を追加しないと永続化されないが、一時的にタブを追加して選択状態にする
                 categories.push(newCat); 
                 filterCategory(newCat); 
-                // 新規カテゴリで即商品追加できるようにする
                 openProductModal();
             } 
         };
         
-        // カテゴリ一括削除機能
         window.deleteCurrentCategory = async () => {
             if (currentFilter === 'All') return;
             if (!confirm(`カテゴリ「${currentFilter}」に含まれる全ての商品を削除しますか？\nこの操作は取り消せません。`)) return;
@@ -259,57 +283,30 @@
             try {
                 const q = query(collection(db, "tenants", tenantId, "products"), where("category", "==", currentFilter));
                 const snapshot = await getDocs(q);
-                
                 const batch = writeBatch(db);
                 let count = 0;
-                snapshot.forEach(doc => {
-                    batch.delete(doc.ref);
-                    count++;
-                });
+                snapshot.forEach(doc => { batch.delete(doc.ref); count++; });
 
-                if (count > 0) {
-                    await batch.commit();
-                    alert(`${count}件の商品を削除しました。`);
-                    // onSnapshotが発火してUIは自動更新される
-                } else {
-                    // 商品が0件の場合（ありえないはずだが）、ローカルのみ更新して戻る
-                    categories = categories.filter(c => c !== currentFilter);
-                    filterCategory('All');
-                }
-            } catch(e) {
-                alert("削除エラー: " + e.message);
-            }
+                if (count > 0) { await batch.commit(); alert(`${count}件の商品を削除しました。`); }
+                else { categories = categories.filter(c => c !== currentFilter); filterCategory('All'); }
+            } catch(e) { alert("削除エラー: " + e.message); }
         };
 
-        // カテゴリ名変更機能
         window.renameCurrentCategory = async () => {
             if (currentFilter === 'All') return;
             const newName = prompt(`「${currentFilter}」の新しいカテゴリ名を入力してください:`, currentFilter);
-            
             if (!newName || newName === currentFilter) return;
-            if (categories.includes(newName)) {
-                alert("そのカテゴリ名は既に存在します。統合する場合は手動で商品を移動してください。");
-                return;
-            }
+            if (categories.includes(newName)) { alert("そのカテゴリ名は既に存在します。"); return; }
 
             try {
                 const q = query(collection(db, "tenants", tenantId, "products"), where("category", "==", currentFilter));
                 const snapshot = await getDocs(q);
                 const batch = writeBatch(db);
-                
-                snapshot.forEach(doc => {
-                    batch.update(doc.ref, { category: newName });
-                });
-
+                snapshot.forEach(doc => { batch.update(doc.ref, { category: newName }); });
                 await batch.commit();
                 alert("カテゴリ名を変更しました");
-                
-                // onSnapshotで自動更新されるが、選択状態を引き継ぐために一時的に変数更新
                 currentFilter = newName;
-
-            } catch(e) {
-                alert("更新エラー: " + e.message);
-            }
+            } catch(e) { alert("更新エラー: " + e.message); }
         };
 
         window.openProductModal = () => {
@@ -335,7 +332,6 @@
             inventoryList.forEach(inv => { invSelect.innerHTML += `<option value="${inv.id}">${inv.name} (残:${inv.currentStock})</option>`; });
         }
 
-        // 一括登録機能
         window.openBulkModal = () => { document.getElementById('bulk-text').value = ""; bulkModal.style.display = 'flex'; };
         window.closeBulkModal = () => bulkModal.style.display = 'none';
 
@@ -350,19 +346,12 @@
                 if (parts.length < 2) continue;
 
                 let isCall = false;
-                if (parts[parts.length - 1].toLowerCase() === 'call') {
-                    isCall = true;
-                    parts.pop();
-                }
+                if (parts[parts.length - 1].toLowerCase() === 'call') { isCall = true; parts.pop(); }
 
                 let priceIndex = -1;
                 for (let i = parts.length - 1; i >= 0; i--) {
-                    if (!isNaN(Number(parts[i]))) {
-                        priceIndex = i;
-                        break;
-                    }
+                    if (!isNaN(Number(parts[i]))) { priceIndex = i; break; }
                 }
-
                 if (priceIndex === -1) continue;
 
                 const price = Number(parts[priceIndex]);
@@ -371,30 +360,16 @@
 
                 if (name && !isNaN(price)) {
                     const newRef = doc(collection(db, "tenants", tenantId, "products"));
-                    batch.set(newRef, {
-                        name: name,
-                        price: price,
-                        category: category,
-                        isCallTarget: isCall,
-                        sortOrder: 9999,
-                        createdAt: serverTimestamp()
-                    });
+                    batch.set(newRef, { name, price, category, isCallTarget: isCall, sortOrder: 9999, createdAt: serverTimestamp() });
                     count++;
                 }
             }
 
             if (count > 0) {
                 if(!confirm(`${count}件の商品を登録しますか？`)) return;
-                try {
-                    await batch.commit();
-                    alert("登録完了しました");
-                    closeBulkModal();
-                } catch(e) { alert("エラー: " + e.message); }
-            } else {
-                alert("有効なデータが見つかりませんでした。\nフォーマットを確認してください。");
-            }
+                try { await batch.commit(); alert("登録完了しました"); closeBulkModal(); } catch(e) { alert("エラー: " + e.message); }
+            } else { alert("有効なデータが見つかりませんでした。"); }
         };
-
 
         hasLinkCheck.onchange = () => { invSettings.style.display = hasLinkCheck.checked ? 'block' : 'none'; };
         document.getElementById('close-modal').onclick = () => modal.style.display = 'none';
@@ -426,13 +401,10 @@
             try { await deleteDoc(doc(db, "tenants", tenantId, "products", id)); modal.style.display = 'none'; } catch(e) { alert("エラー: " + e.message); }
         };
 
-        new Sortable(grid, {
-            animation: 150, handle: '.drag-handle', ghostClass: 'sortable-ghost',
-            onEnd: async function (evt) {
-                const items = grid.querySelectorAll('.product-card');
-                items.forEach((item, index) => { const pid = item.dataset.id; if(pid) updateDoc(doc(db, "tenants", tenantId, "products", pid), { sortOrder: index }); });
-            }
-        });
+        new Sortable(grid, { animation: 150, handle: '.drag-handle', ghostClass: 'sortable-ghost', onEnd: async function (evt) {
+            const items = grid.querySelectorAll('.product-card');
+            items.forEach((item, index) => { const pid = item.dataset.id; if(pid) updateDoc(doc(db, "tenants", tenantId, "products", pid), { sortOrder: index }); });
+        }});
         init();
     </script>
 </body>
